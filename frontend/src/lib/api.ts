@@ -84,6 +84,12 @@ class ApiClient {
     return this.request(`/resumes/${resumeId}/analysis`);
   }
 
+  async deleteResume(resumeId: string) {
+    return this.request(`/resumes/${resumeId}`, {
+      method: "DELETE",
+    });
+  }
+
   // JDs
   async uploadJD(file: File) {
     const formData = new FormData();
@@ -102,14 +108,33 @@ class ApiClient {
     return this.request(`/jds/${jdId}/analysis`);
   }
 
+  async deleteJD(jdId: string) {
+    return this.request(`/jds/${jdId}`, {
+      method: "DELETE",
+    });
+  }
+
   // Question Banks
-  async uploadQuestionBank(file: File, name?: string) {
+  async createQuestionBank(name: string, files?: File[]) {
     const formData = new FormData();
-    formData.append("file", file);
-    if (name) {
-      formData.append("name", name);
+    formData.append("name", name);
+    if (files) {
+      for (const file of files) {
+        formData.append("files", file);
+      }
     }
-    return this.request("/question-banks/upload", {
+    return this.request("/question-banks", {
+      method: "POST",
+      body: formData,
+    });
+  }
+
+  async addFilesToBank(bankId: string, files: File[]) {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append("files", file);
+    }
+    return this.request(`/question-banks/${bankId}/add-files`, {
       method: "POST",
       body: formData,
     });
@@ -117,6 +142,12 @@ class ApiClient {
 
   async getQuestionBanks() {
     return this.request("/question-banks");
+  }
+
+  async deleteQuestionBank(bankId: string) {
+    return this.request(`/question-banks/${bankId}`, {
+      method: "DELETE",
+    });
   }
 
   // Interviews

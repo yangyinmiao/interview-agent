@@ -81,12 +81,34 @@
 
 ## 5. 题库管理 (Question Banks)
 
+题库采用容器模型：一个题库 = 一个命名容器 + 多个文件。创建时指定名称和初始文件，之后可追加更多文件。
+
 | 方法 | 路径 | 说明 |
 |------|------|------|
-| POST | `/api/v1/question-banks/upload` | 上传题库文件 |
+| POST | `/api/v1/question-banks` | 创建题库（name + 可选 files[]） |
+| POST | `/api/v1/question-banks/{id}/add-files` | 追加文件到已有题库 |
 | GET | `/api/v1/question-banks` | 题库列表 |
 | GET | `/api/v1/question-banks/{id}` | 题库详情 |
 | DELETE | `/api/v1/question-banks/{id}` | 删除题库 |
+
+**创建题库请求** (multipart/form-data):
+- `name` (string, 必填): 题库名称，如 "AI应用开发题库"
+- `files` (file[], 可选): 初始上传的文件列表
+
+**追加文件请求** (multipart/form-data):
+- `files` (file[], 必填): 要追加的文件列表
+
+**响应**:
+```json
+{
+    "id": "uuid",
+    "name": "AI应用开发题库",
+    "description": "agent知识.pdf, rag知识.pdf, 网络知识.pdf",
+    "created_at": "2026-05-27T10:00:00Z"
+}
+```
+
+其中 `description` 字段记录题库内包含的文件名列表，以逗号分隔。
 
 ## 6. 面试 (Interviews)
 
@@ -99,6 +121,8 @@
 | POST | `/api/v1/interviews/{id}/end` | 手动结束面试 |
 | GET | `/api/v1/interviews/{id}/report` | 获取评估报告 |
 | GET | `/api/v1/interviews` | 面试历史列表 |
+| DELETE | `/api/v1/interviews/{id}` | 删除单条面试记录及关联数据 |
+| DELETE | `/api/v1/interviews/batch` | 批量删除面试记录 |
 
 **创建面试请求**:
 ```json

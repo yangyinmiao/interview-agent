@@ -3,8 +3,6 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api } from "@/lib/api";
-import { isAuthenticated, logout } from "@/lib/auth";
-import FileUpload from "@/components/FileUpload";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -18,10 +16,6 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/login");
-      return;
-    }
     loadData();
   }, []);
 
@@ -54,137 +48,95 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex justify-between items-center">
-          <h1 className="text-xl font-bold">模拟面试 Agent</h1>
-          <button
-            onClick={logout}
-            className="text-sm text-gray-600 hover:text-gray-900"
-          >
-            退出登录
-          </button>
-        </div>
-      </header>
+    <div>
+      <div className="bg-white rounded-lg shadow p-6">
+        <h2 className="text-lg font-semibold mb-4">开始面试</h2>
 
-      <main className="max-w-6xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <FileUpload
-            title="上传简历"
-            accept=".pdf,.docx,.txt,.md"
-            onUpload={async (file) => {
-              await api.uploadResume(file);
-              await loadData();
-            }}
-          />
-          <FileUpload
-            title="上传 JD"
-            accept=".pdf,.docx,.txt,.md"
-            onUpload={async (file) => {
-              await api.uploadJD(file);
-              await loadData();
-            }}
-          />
-          <FileUpload
-            title="上传题库"
-            accept=".pdf,.txt,.md"
-            onUpload={async (file) => {
-              await api.uploadQuestionBank(file);
-              await loadData();
-            }}
-          />
-        </div>
-
-        <div className="bg-white rounded-lg shadow p-6">
-          <h2 className="text-lg font-semibold mb-4">开始面试</h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                选择简历
-              </label>
-              <select
-                value={selectedResume}
-                onChange={(e) => setSelectedResume(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">不选择（无简历模式）</option>
-                {resumes.map((r: any) => (
-                  <option key={r.id} value={r.id}>
-                    {r.filename} ({r.parse_status})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                选择 JD
-              </label>
-              <select
-                value={selectedJD}
-                onChange={(e) => setSelectedJD(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">不选择（通用面试）</option>
-                {jds.map((j: any) => (
-                  <option key={j.id} value={j.id}>
-                    {j.filename} ({j.parse_status})
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                选择题库
-              </label>
-              <select
-                value={selectedQBank}
-                onChange={(e) => setSelectedQBank(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="">不使用题库</option>
-                {qbanks.map((q: any) => (
-                  <option key={q.id} value={q.id}>
-                    {q.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                面试模式
-              </label>
-              <select
-                value={mode}
-                onChange={(e) => setMode(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-              >
-                <option value="basic">基础问答</option>
-                <option value="deep">深入提问</option>
-                <option value="follow_up">追问模式</option>
-                <option value="stress">压力面试</option>
-              </select>
-            </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              选择简历
+            </label>
+            <select
+              value={selectedResume}
+              onChange={(e) => setSelectedResume(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            >
+              <option value="">不选择（无简历模式）</option>
+              {resumes.map((r: any) => (
+                <option key={r.id} value={r.id}>
+                  {r.filename} ({r.parse_status})
+                </option>
+              ))}
+            </select>
           </div>
 
-          <button
-            onClick={startInterview}
-            disabled={loading}
-            className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-lg font-medium"
-          >
-            {loading ? "准备面试中..." : "开始面试"}
-          </button>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              选择 JD
+            </label>
+            <select
+              value={selectedJD}
+              onChange={(e) => setSelectedJD(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            >
+              <option value="">不选择（通用面试）</option>
+              {jds.map((j: any) => (
+                <option key={j.id} value={j.id}>
+                  {j.filename} ({j.parse_status})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              选择题库
+            </label>
+            <select
+              value={selectedQBank}
+              onChange={(e) => setSelectedQBank(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            >
+              <option value="">不使用题库</option>
+              {qbanks.map((q: any) => (
+                <option key={q.id} value={q.id}>
+                  {q.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              面试模式
+            </label>
+            <select
+              value={mode}
+              onChange={(e) => setMode(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+            >
+              <option value="basic">基础问答</option>
+              <option value="deep">深入提问</option>
+              <option value="follow_up">追问模式</option>
+              <option value="stress">压力面试</option>
+            </select>
+          </div>
         </div>
 
-        {/* Interview History */}
-        <div className="mt-8">
-          <h2 className="text-lg font-semibold mb-4">面试历史</h2>
-          <InterviewsList />
-        </div>
-      </main>
+        <button
+          onClick={startInterview}
+          disabled={loading}
+          className="w-full bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors text-lg font-medium"
+        >
+          {loading ? "准备面试中..." : "开始面试"}
+        </button>
+      </div>
+
+      <div className="mt-8">
+        <h2 className="text-lg font-semibold mb-4">面试历史</h2>
+        <InterviewsList />
+      </div>
     </div>
   );
 }

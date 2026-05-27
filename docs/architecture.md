@@ -7,7 +7,7 @@
 核心能力：
 - 上传简历并AI分析候选人画像
 - 上传JD并提取岗位需求
-- 上传题库构建知识库
+- 创建命名题库并上传多份资料构建知识库（支持文件追加）
 - 多模式模拟面试（基础、深入提问、追问、压力面）
 - 面试后自动评估和报告生成
 
@@ -147,6 +147,16 @@ interview-agent/
 │       ├── prompts/         # Prompt 模板
 │       └── tasks/           # Celery 任务
 ├── frontend/                # Next.js 前端
+│   └── src/app/
+│       ├── page.tsx                 # 首页（重定向到登录）
+│       ├── login/page.tsx           # 登录/注册页
+│       ├── dashboard/
+│       │   ├── layout.tsx           # Tab 导航（面试中心/简历/岗位/题库）
+│       │   ├── page.tsx             # 面试中心（创建面试 + 历史列表）
+│       │   ├── resumes/page.tsx     # 简历管理（上传 + 列表 + 删除）
+│       │   ├── jds/page.tsx         # 岗位管理（上传 + 列表 + 删除）
+│       │   └── question-banks/page.tsx  # 题库管理（创建 + 追加文件 + 删除）
+│       └── interview/[id]/page.tsx  # 面试对话页（自动开始 + 对话 + 报告）
 ├── docker-compose.yml       # 容器编排
 └── .env.example             # 环境变量模板
 ```
