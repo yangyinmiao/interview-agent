@@ -164,16 +164,17 @@ class ApiClient {
     });
   }
 
-  async startInterview(interviewId: string) {
+  async startInterview(interviewId: string, learningMode?: boolean) {
     return this.request(`/interviews/${interviewId}/start`, {
       method: "POST",
+      body: JSON.stringify({ learning_mode: learningMode || false }),
     });
   }
 
-  async respondToQuestion(interviewId: string, answer: string) {
+  async respondToQuestion(interviewId: string, answer: string, learningMode?: boolean) {
     return this.request(`/interviews/${interviewId}/respond`, {
       method: "POST",
-      body: JSON.stringify({ answer }),
+      body: JSON.stringify({ answer, learning_mode: learningMode || false }),
     });
   }
 

@@ -7,15 +7,19 @@ interface Message {
   id: string;
   role: string;
   content: string;
+  metadata?: {
+    reference_answer?: string;
+  };
   created_at?: string;
 }
 
 interface ChatPanelProps {
   messages: Message[];
   loading?: boolean;
+  learningMode?: boolean;
 }
 
-export default function ChatPanel({ messages, loading }: ChatPanelProps) {
+export default function ChatPanel({ messages, loading, learningMode }: ChatPanelProps) {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -47,6 +51,14 @@ export default function ChatPanel({ messages, loading }: ChatPanelProps) {
           <div className="prose prose-sm max-w-none">
             <ReactMarkdown>{msg.content}</ReactMarkdown>
           </div>
+          {learningMode && msg.role === "interviewer" && msg.metadata?.reference_answer && (
+            <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
+              <div className="text-xs text-green-600 mb-1 font-medium">📝 参考答案</div>
+              <div className="prose prose-sm max-w-none text-green-900">
+                <ReactMarkdown>{msg.metadata.reference_answer}</ReactMarkdown>
+              </div>
+            </div>
+          )}
         </div>
       ))}
 

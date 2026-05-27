@@ -105,9 +105,23 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
         state["round_count"] = round_count + 1
         state["next_action"] = "wait"
 
+        # Generate reference answer if learning mode is active
+        if state.get("learning_mode", False):
+            question = state["current_question"]
+            if question:
+                jd_context = state.get("jd_analysis", {})
+                context_str = json.dumps(jd_context, ensure_ascii=False) if jd_context else ""
+                ref_answer = await interviewer_agent.generate_reference_answer(question, context_str)
+                state["reference_answer"] = ref_answer
+            else:
+                state["reference_answer"] = None
+        else:
+            state["reference_answer"] = None
+
         logger.info(
             f"Round {round_count + 1} question ready",
             question_length=len(result.get("question", "")),
+            learning_mode=state.get("learning_mode", False),
             duration_ms=round((time.time() - start) * 1000, 2),
         )
         return state

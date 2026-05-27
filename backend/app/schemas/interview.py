@@ -31,6 +31,11 @@ class BatchDeleteInterviews(BaseModel):
 
 class AnswerRequest(BaseModel):
     answer: str = Field(..., min_length=1)
+    learning_mode: bool = False
+
+
+class StartInterviewRequest(BaseModel):
+    learning_mode: bool = False
 
 
 class QuestionResponse(BaseModel):
@@ -38,6 +43,7 @@ class QuestionResponse(BaseModel):
     round_count: int
     max_rounds: int
     status: str  # 'active' | 'completed'
+    reference_answer: Optional[str] = None
 
 
 class InterviewMessageResponse(BaseModel):

@@ -14,6 +14,7 @@ from app.schemas.interview import (
     InterviewCreate,
     InterviewResponse,
     AnswerRequest,
+    StartInterviewRequest,
     QuestionResponse,
     InterviewMessageResponse,
     InterviewReportResponse,
@@ -53,6 +54,7 @@ async def create_interview(
 @router.post("/{interview_id}/start", response_model=QuestionResponse)
 async def start_interview(
     interview_id: str,
+    data: StartInterviewRequest = StartInterviewRequest(),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ):
@@ -106,6 +108,8 @@ async def start_interview(
         "answer_evaluations": [],
         "final_report": None,
         "messages": [],
+        "learning_mode": data.learning_mode,
+        "reference_answer": None,
         "next_action": "prepare",
     }
 
@@ -116,10 +120,14 @@ async def start_interview(
     if not question:
         question = "欢迎参加面试，请先简单介绍一下自己。"
 
+    reference_answer = result_state.get("reference_answer")
+    msg_meta = {"reference_answer": reference_answer} if reference_answer else None
+
     msg = InterviewMessage(
         interview_id=interview.id,
         role="interviewer",
         content=question,
+        meta_data=msg_meta,
     )
     db.add(msg)
     await db.flush()
@@ -129,6 +137,7 @@ async def start_interview(
         round_count=result_state.get("round_count", 1),
         max_rounds=10,
         status=interview.status,
+        reference_answer=reference_answer,
     )
 
 
@@ -200,6 +209,8 @@ async def respond_to_question(
         "answer_evaluations": [],
         "final_report": None,
         "messages": [],
+        "learning_mode": data.learning_mode,
+        "reference_answer": None,
         "next_action": "evaluate",
     }
 
@@ -244,11 +255,14 @@ async def respond_to_question(
 
     # Next question
     next_question = result_state.get("current_question", "")
+    reference_answer = result_state.get("reference_answer")
     if next_question:
+        msg_meta = {"reference_answer": reference_answer} if reference_answer else None
         question_msg = InterviewMessage(
             interview_id=interview.id,
             role="interviewer",
             content=next_question,
+            meta_data=msg_meta,
         )
         db.add(question_msg)
 
@@ -257,6 +271,7 @@ async def respond_to_question(
         round_count=result_state.get("round_count", round_count + 1),
         max_rounds=10,
         status=interview.status,
+        reference_answer=reference_answer,
     )
 
 

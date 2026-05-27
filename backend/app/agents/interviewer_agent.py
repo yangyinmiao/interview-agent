@@ -102,3 +102,23 @@ class InterviewerAgent(BaseAgent):
             return "尚未提问"
         topics = {h.get("topic", "未分类") for h in history if "topic" in h}
         return ", ".join(topics) if topics else "综合面试"
+
+    async def generate_reference_answer(self, question: str, context: str = "") -> str:
+        """Generate a high-quality reference answer for learning mode."""
+        context_block = f"\n\n## 背景上下文\n{context}" if context else ""
+        prompt = f"""你是一位资深技术面试官。请为以下面试问题生成一份高质量的参考答案。
+
+## 面试问题
+{question}
+{context_block}
+
+## 参考答案要求
+1. 技术准确，覆盖关键知识点
+2. 结构清晰，有逻辑层次
+3. 长度适中，2-4 段即可
+4. 如果涉及代码，给出简洁示例
+
+请直接输出参考答案，不需要 JSON 格式。"""
+
+        response = await self.invoke_llm(prompt)
+        return response.strip()

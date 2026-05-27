@@ -32,6 +32,10 @@ class InterviewState(TypedDict):
     # === Messages (for LangGraph message state) ===
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
+    # === Learning mode ===
+    learning_mode: bool
+    reference_answer: Optional[str]
+
     # === Routing ===
     next_action: str  # 'prepare' | 'ask' | 'wait' | 'evaluate' | 'end'
 
