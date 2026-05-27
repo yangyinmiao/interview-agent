@@ -20,14 +20,8 @@ export default function InterviewPage({
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [hasStarted, setHasStarted] = useState(false);
-
-  useEffect(() => {
-    if (!isAuthenticated()) {
-      router.push("/login");
-      return;
-    }
-    loadMessages();
-  }, [id]);
+  const [initializing, setInitializing] = useState(true);
+  const [startError, setStartError] = useState(false);
 
   const loadMessages = async () => {
     try {
@@ -36,7 +30,6 @@ export default function InterviewPage({
       if (msgs && msgs.length > 0) {
         setHasStarted(true);
       }
-      // Try loading the report — if it exists, the interview was completed
       try {
         const r = await api.getInterviewReport(id);
         if (r) {
@@ -44,15 +37,27 @@ export default function InterviewPage({
           setStatus("completed");
         }
       } catch {
-        // Report not ready yet — interview is still active
+        // Report not ready yet
       }
     } catch (err) {
       console.error("Failed to load messages", err);
+    } finally {
+      setInitializing(false);
+    }
+  };
+
+  const loadReport = async () => {
+    try {
+      const r = await api.getInterviewReport(id);
+      setReport(r);
+    } catch {
+      // Report might not be ready yet
     }
   };
 
   const startInterview = async () => {
     setLoading(true);
+    setStartError(false);
     try {
       const result = await api.startInterview(id);
       setHasStarted(true);
@@ -62,11 +67,28 @@ export default function InterviewPage({
       }
       await loadMessages();
     } catch (err) {
-      alert("Failed to start interview");
+      setStartError(true);
     } finally {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    if (!isAuthenticated()) {
+      router.push("/login");
+      return;
+    }
+    loadMessages();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
+
+  // Auto-start interview when page loads with no messages
+  useEffect(() => {
+    if (!initializing && !hasStarted && status === "active") {
+      startInterview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initializing]);
 
   const submitAnswer = async () => {
     if (!answer.trim()) return;
@@ -103,15 +125,6 @@ export default function InterviewPage({
     }
   };
 
-  const loadReport = async () => {
-    try {
-      const r = await api.getInterviewReport(id);
-      setReport(r);
-    } catch (err) {
-      // Report might not be ready yet
-    }
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
       <header className="bg-white shadow-sm border-b px-4 py-3 flex justify-between items-center">
@@ -137,13 +150,32 @@ export default function InterviewPage({
 
       {!hasStarted ? (
         <div className="flex-1 flex items-center justify-center">
-          <button
-            onClick={startInterview}
-            disabled={loading}
-            className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 disabled:opacity-50 text-lg"
-          >
-            {loading ? "准备中..." : "开始面试"}
-          </button>
+          {(initializing || loading) && (
+            <div className="text-center">
+              <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full mx-auto mb-4" />
+              <p className="text-gray-600">正在准备面试，请稍候...</p>
+              <p className="text-gray-400 text-sm mt-2">AI 正在分析资料并生成面试问题</p>
+            </div>
+          )}
+          {!initializing && !loading && startError && (
+            <div className="text-center">
+              <p className="text-red-600 mb-4">启动面试失败</p>
+              <button
+                onClick={startInterview}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"
+              >
+                重试
+              </button>
+            </div>
+          )}
+          {!initializing && !loading && !startError && (
+            <button
+              onClick={startInterview}
+              className="bg-blue-600 text-white px-8 py-4 rounded-lg hover:bg-blue-700 text-lg"
+            >
+              开始面试
+            </button>
+          )}
         </div>
       ) : (
         <>

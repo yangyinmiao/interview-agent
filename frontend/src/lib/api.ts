@@ -160,6 +160,19 @@ class ApiClient {
     return this.request(`/interviews/${interviewId}/report`);
   }
 
+  async deleteInterview(interviewId: string) {
+    return this.request(`/interviews/${interviewId}`, {
+      method: "DELETE",
+    });
+  }
+
+  async deleteInterviews(ids: string[]) {
+    return this.request("/interviews/batch", {
+      method: "DELETE",
+      body: JSON.stringify({ ids }),
+    });
+  }
+
   async getInterviews() {
     return this.request("/interviews");
   }

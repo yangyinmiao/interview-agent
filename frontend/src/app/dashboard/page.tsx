@@ -45,7 +45,6 @@ export default function DashboardPage() {
         question_bank_id: selectedQBank || undefined,
         mode,
       });
-      const started = await api.startInterview(result.id);
       router.push(`/interview/${result.id}`);
     } catch (err) {
       alert("Failed to start interview");
@@ -192,45 +191,145 @@ export default function DashboardPage() {
 
 function InterviewsList() {
   const [interviews, setInterviews] = useState<any[]>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [deleting, setDeleting] = useState(false);
+
+  const loadInterviews = () => {
+    api.getInterviews().then(setInterviews).catch(() => {});
+  };
 
   useEffect(() => {
-    api.getInterviews().then(setInterviews).catch(() => {});
+    loadInterviews();
   }, []);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleAll = () => {
+    if (selectedIds.size === interviews.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(interviews.map((i) => i.id)));
+    }
+  };
+
+  const deleteOne = async (id: string) => {
+    if (!confirm("确定要删除这条面试记录吗？")) return;
+    try {
+      await api.deleteInterview(id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      loadInterviews();
+    } catch {
+      alert("删除失败");
+    }
+  };
+
+  const batchDelete = async () => {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`确定要删除选中的 ${selectedIds.size} 条面试记录吗？`)) return;
+
+    setDeleting(true);
+    try {
+      await api.deleteInterviews(Array.from(selectedIds));
+      setSelectedIds(new Set());
+      loadInterviews();
+    } catch {
+      alert("删除失败");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   if (interviews.length === 0) {
     return <p className="text-gray-500 text-sm">暂无面试记录</p>;
   }
 
+  const allSelected = selectedIds.size === interviews.length;
+
   return (
-    <div className="space-y-2">
-      {interviews.map((i: any) => (
-        <div
-          key={i.id}
-          className="bg-white rounded-lg shadow p-4 flex justify-between items-center"
-        >
-          <div>
-            <span className="font-medium">{i.mode}</span>
-            <span
-              className={`ml-2 text-xs px-2 py-0.5 rounded ${
-                i.status === "completed"
-                  ? "bg-green-100 text-green-700"
-                  : "bg-blue-100 text-blue-700"
-              }`}
-            >
-              {i.status === "completed" ? "已完成" : "进行中"}
-            </span>
-            <span className="ml-2 text-sm text-gray-500">
-              {new Date(i.started_at).toLocaleString("zh-CN")}
-            </span>
-          </div>
-          <a
-            href={`/interview/${i.id}`}
-            className="text-blue-600 hover:underline text-sm"
+    <div>
+      <div className="flex items-center gap-3 mb-3">
+        <label className="flex items-center gap-1 text-sm text-gray-600 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={allSelected}
+            onChange={toggleAll}
+            className="rounded"
+          />
+          全选
+        </label>
+        {selectedIds.size > 0 && (
+          <button
+            onClick={batchDelete}
+            disabled={deleting}
+            className="text-sm text-red-600 hover:text-red-800 disabled:opacity-50"
           >
-            查看
-          </a>
-        </div>
-      ))}
+            {deleting ? "删除中..." : `批量删除 (${selectedIds.size})`}
+          </button>
+        )}
+      </div>
+
+      <div className="space-y-2">
+        {interviews.map((i: any) => (
+          <div
+            key={i.id}
+            className={`bg-white rounded-lg shadow p-4 flex justify-between items-center ${
+              selectedIds.has(i.id) ? "ring-2 ring-blue-400" : ""
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <input
+                type="checkbox"
+                checked={selectedIds.has(i.id)}
+                onChange={() => toggleSelect(i.id)}
+                className="rounded"
+              />
+              <div>
+                <span className="font-medium">{i.mode}</span>
+                <span
+                  className={`ml-2 text-xs px-2 py-0.5 rounded ${
+                    i.status === "completed"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-blue-100 text-blue-700"
+                  }`}
+                >
+                  {i.status === "completed" ? "已完成" : "进行中"}
+                </span>
+                <span className="ml-2 text-sm text-gray-500">
+                  {new Date(i.started_at).toLocaleString("zh-CN")}
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <a
+                href={`/interview/${i.id}`}
+                className="text-blue-600 hover:underline text-sm"
+              >
+                查看
+              </a>
+              <button
+                onClick={() => deleteOne(i.id)}
+                className="text-red-500 hover:text-red-700 text-sm"
+              >
+                删除
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

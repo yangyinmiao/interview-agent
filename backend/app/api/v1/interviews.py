@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, delete
 
 from app.core.database import get_db, async_session_factory
 from app.core.tenant import get_current_tenant
@@ -10,6 +10,7 @@ from app.models.interview import Interview
 from app.models.interview_message import InterviewMessage
 from app.models.interview_report import InterviewReport
 from app.schemas.interview import (
+    BatchDeleteInterviews,
     InterviewCreate,
     InterviewResponse,
     AnswerRequest,
@@ -65,6 +66,22 @@ async def start_interview(
 
     if interview.status != "active":
         raise HTTPException(status_code=400, detail="Interview is not active")
+
+    # Guard: if already started, return the existing first question
+    existing = await db.execute(
+        select(InterviewMessage).where(
+            InterviewMessage.interview_id == interview.id,
+            InterviewMessage.role == "interviewer",
+        ).limit(1)
+    )
+    first_msg = existing.scalar_one_or_none()
+    if first_msg:
+        return QuestionResponse(
+            question=first_msg.content,
+            round_count=1,
+            max_rounds=10,
+            status=interview.status,
+        )
 
     from app.graphs.interview_graph import build_interview_graph
 
@@ -381,6 +398,90 @@ async def get_report(
         raw_analysis=report.raw_analysis,
         created_at=report.created_at,
     )
+
+
+@router.delete("/batch", response_model=dict)
+async def batch_delete_interviews(
+    data: BatchDeleteInterviews,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Batch delete interviews and their related data (messages, reports)."""
+    # First, find which interview IDs actually belong to this tenant
+    tenant_result = await db.execute(
+        select(Interview.id).where(
+            Interview.id.in_(data.ids),
+            Interview.tenant_id == tenant.id,
+        )
+    )
+    tenant_ids = [row[0] for row in tenant_result.fetchall()]
+
+    if not tenant_ids:
+        return {"deleted": 0}
+
+    # Delete messages (no tenant_id column on InterviewMessage)
+    await db.execute(
+        delete(InterviewMessage).where(
+            InterviewMessage.interview_id.in_(tenant_ids)
+        )
+    )
+
+    # Delete reports
+    await db.execute(
+        delete(InterviewReport).where(
+            InterviewReport.interview_id.in_(tenant_ids),
+            InterviewReport.tenant_id == tenant.id,
+        )
+    )
+
+    # Delete interviews
+    result = await db.execute(
+        delete(Interview).where(
+            Interview.id.in_(tenant_ids),
+        )
+    )
+
+    return {"deleted": result.rowcount}
+
+
+@router.delete("/{interview_id}", response_model=dict)
+async def delete_interview(
+    interview_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Delete a single interview and its related data (messages, reports)."""
+    result = await db.execute(
+        select(Interview).where(
+            Interview.id == interview_id,
+            Interview.tenant_id == tenant.id,
+        )
+    )
+    interview = result.scalar_one_or_none()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    # Delete messages (no tenant_id column)
+    await db.execute(
+        delete(InterviewMessage).where(
+            InterviewMessage.interview_id == interview.id
+        )
+    )
+
+    # Delete report
+    await db.execute(
+        delete(InterviewReport).where(
+            InterviewReport.interview_id == interview.id,
+            InterviewReport.tenant_id == tenant.id,
+        )
+    )
+
+    # Delete interview
+    await db.execute(
+        delete(Interview).where(Interview.id == interview.id)
+    )
+
+    return {"deleted": interview_id}
 
 
 @router.get("", response_model=List[InterviewResponse])

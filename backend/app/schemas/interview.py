@@ -25,6 +25,10 @@ class InterviewResponse(BaseModel):
         from_attributes = True
 
 
+class BatchDeleteInterviews(BaseModel):
+    ids: list[str] = Field(..., min_length=1, max_length=100)
+
+
 class AnswerRequest(BaseModel):
     answer: str = Field(..., min_length=1)
 
