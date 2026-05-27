@@ -194,12 +194,12 @@ export default function InterviewPage({
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter" && !e.shiftKey) {
+                    if (e.key === "Enter" && e.shiftKey) {
                       e.preventDefault();
                       submitAnswer();
                     }
                   }}
-                  placeholder="输入你的回答... (Enter 发送, Shift+Enter 换行)"
+                  placeholder="输入你的回答... (Shift+Enter 发送, Enter 换行)"
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                   rows={3}
                   disabled={loading}
