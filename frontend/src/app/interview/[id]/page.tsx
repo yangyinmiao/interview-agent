@@ -32,7 +32,7 @@ export default function InterviewPage({
       }
       try {
         const r = await api.getInterviewReport(id);
-        if (r) {
+        if (r && r.scores) {
           setReport(r);
           setStatus("completed");
         }
