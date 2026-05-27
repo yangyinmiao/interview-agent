@@ -1,0 +1,90 @@
+# ===== Python =====
+# 以下模式不含前导 /，会递归匹配所有子目录（如 backend/__pycache__/）
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+wheels/
+*.egg-link
+.installed.cfg
+MANIFEST
+*.pyo
+*.pyd
+
+# Virtual environments（匹配任意子目录，如 backend/.venv/）
+.venv/
+venv/
+env/
+ENV/
+.python-version
+
+# pytest / coverage（匹配任意子目录，如 backend/.pytest_cache/）
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+junit*.xml
+test-results/
+
+# mypy（匹配任意子目录）
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Ruff / linting（匹配任意子目录）
+.ruff_cache/
+
+# IPython / Jupyter
+.ipynb_checkpoints/
+*.ipynb
+
+# ===== Node / Next.js =====
+node_modules/
+.next/
+out/
+.turbo/
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ===== Environment & Secrets =====
+.env
+.env.*
+!.env.example
+
+# ===== Docker =====
+# (docker-compose overrides with local settings)
+docker-compose.override.yml
+
+# ===== Alembic =====
+# Keep versions tracked; ignore nothing specific here
+
+# ===== IDEs =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ===== OS =====
+.DS_Store
+Thumbs.db
+
+# ===== Logs =====
+logs/
+*.log
+
+# ===== Uploads / generated files =====
+uploads/
+tmp/

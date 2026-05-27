@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(PYTHONPATH=. uv run *)",
+      "Bash(docker compose logs *)",
+      "Bash(curl -s -X POST https://goods.fatrabbits.shop:12788/v1/embeddings -H 'Authorization: Bearer sk-Ihlqo088yniaP987IHHhguo19019ihgnfbHGT812Ohh1bbh99875hhGUUIQ' -H 'Content-Type: application/json' -d '{\"model\":\"text-embedding-3-small\",\"input\":\"test\"}')",
+      "Bash(curl -s -X POST https://goods.fatrabbits.shop:12788/v1/embeddings -H 'Authorization: Bearer sk-Ihlqo088yniaP987IHHhguo19019ihgnfbHGT812Ohh1bbh99875hhGUUIQ' -H 'Content-Type: application/json' -d '{\"model\":\"text-embedding-3-small\",\"input\":[\"text1\",\"text2\",\"text3\",\"text4\",\"text5\",\"text6\",\"text7\",\"text8\",\"text9\",\"text10\",\"text11\",\"text12\",\"text13\",\"text14\",\"text15\",\"text16\",\"text17\",\"text18\",\"text19\",\"text20\"]}')",
+      "Bash(docker compose cp *)",
+      "Bash(docker compose restart *)",
+      "Bash(docker compose exec *)",
+      "Bash(curl -s -X DELETE http://localhost:6333/collections/chunks)",
+      "Bash(curl -s -X DELETE http://localhost:6333/collections/questions)",
+      "Bash(curl -s -X PUT http://localhost:6333/collections/chunks -H 'Content-Type: application/json' -d '{\"vectors\":{\"size\":1536,\"distance\":\"Cosine\"},\"on_disk_payload\":true}')",
+      "Bash(curl -s -X PUT http://localhost:6333/collections/questions -H 'Content-Type: application/json' -d '{\"vectors\":{\"size\":1536,\"distance\":\"Cosine\"},\"on_disk_payload\":true}')",
+      "Bash(curl -s http://localhost:6333/collections/chunks)",
+      "Bash(curl -s http://localhost:6333/collections/questions)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'chunks: {d[\\\\\"result\\\\\"][\\\\\"points_count\\\\\"]} points'\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(f'questions: {d[\\\\\"result\\\\\"][\\\\\"points_count\\\\\"]} points'\\)\")",
+      "Bash(curl *)"
+    ]
+  }
+}
