@@ -14,10 +14,10 @@ from app.schemas.interview import (
     InterviewCreate,
     InterviewResponse,
     AnswerRequest,
-    StartInterviewRequest,
     QuestionResponse,
     InterviewMessageResponse,
     InterviewReportResponse,
+    ReferenceAnswerResponse,
 )
 
 router = APIRouter(prefix="/interviews", tags=["interviews"])
@@ -54,7 +54,6 @@ async def create_interview(
 @router.post("/{interview_id}/start", response_model=QuestionResponse)
 async def start_interview(
     interview_id: str,
-    data: StartInterviewRequest = StartInterviewRequest(),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ):
@@ -108,8 +107,6 @@ async def start_interview(
         "answer_evaluations": [],
         "final_report": None,
         "messages": [],
-        "learning_mode": data.learning_mode,
-        "reference_answer": None,
         "next_action": "prepare",
     }
 
@@ -120,14 +117,10 @@ async def start_interview(
     if not question:
         question = "欢迎参加面试，请先简单介绍一下自己。"
 
-    reference_answer = result_state.get("reference_answer")
-    msg_meta = {"reference_answer": reference_answer} if reference_answer else None
-
     msg = InterviewMessage(
         interview_id=interview.id,
         role="interviewer",
         content=question,
-        meta_data=msg_meta,
     )
     db.add(msg)
     await db.flush()
@@ -137,7 +130,6 @@ async def start_interview(
         round_count=result_state.get("round_count", 1),
         max_rounds=10,
         status=interview.status,
-        reference_answer=reference_answer,
     )
 
 
@@ -209,8 +201,6 @@ async def respond_to_question(
         "answer_evaluations": [],
         "final_report": None,
         "messages": [],
-        "learning_mode": data.learning_mode,
-        "reference_answer": None,
         "next_action": "evaluate",
     }
 
@@ -255,14 +245,11 @@ async def respond_to_question(
 
     # Next question
     next_question = result_state.get("current_question", "")
-    reference_answer = result_state.get("reference_answer")
     if next_question:
-        msg_meta = {"reference_answer": reference_answer} if reference_answer else None
         question_msg = InterviewMessage(
             interview_id=interview.id,
             role="interviewer",
             content=next_question,
-            meta_data=msg_meta,
         )
         db.add(question_msg)
 
@@ -271,7 +258,6 @@ async def respond_to_question(
         round_count=result_state.get("round_count", round_count + 1),
         max_rounds=10,
         status=interview.status,
-        reference_answer=reference_answer,
     )
 
 
@@ -299,6 +285,61 @@ async def get_messages(
         )
         for m in msgs.scalars().all()
     ]
+
+
+@router.post("/{interview_id}/messages/{message_id}/reference-answer", response_model=ReferenceAnswerResponse)
+async def get_reference_answer(
+    interview_id: str,
+    message_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate (or retrieve cached) reference answer for an interviewer question."""
+    # Verify interview belongs to tenant
+    result = await db.execute(
+        select(Interview).where(Interview.id == interview_id, Interview.tenant_id == tenant.id)
+    )
+    interview = result.scalar_one_or_none()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    # Get the message
+    result = await db.execute(
+        select(InterviewMessage).where(
+            InterviewMessage.id == message_id,
+            InterviewMessage.interview_id == interview.id,
+        )
+    )
+    msg = result.scalar_one_or_none()
+    if not msg:
+        raise HTTPException(status_code=404, detail="Message not found")
+
+    if msg.role != "interviewer":
+        raise HTTPException(status_code=400, detail="Reference answer only available for interviewer messages")
+
+    # Check if already cached
+    if msg.meta_data and msg.meta_data.get("reference_answer"):
+        return ReferenceAnswerResponse(
+            message_id=str(msg.id),
+            reference_answer=msg.meta_data["reference_answer"],
+            cached=True,
+        )
+
+    # Generate reference answer
+    from app.agents.interviewer_agent import InterviewerAgent
+
+    agent = InterviewerAgent()
+    reference_answer = await agent.generate_reference_answer(question=msg.content)
+
+    # Save to message metadata
+    msg.meta_data = {**(msg.meta_data or {}), "reference_answer": reference_answer}
+    await db.flush()
+
+    return ReferenceAnswerResponse(
+        message_id=str(msg.id),
+        reference_answer=reference_answer,
+        cached=False,
+    )
 
 
 @router.post("/{interview_id}/end", response_model=dict)

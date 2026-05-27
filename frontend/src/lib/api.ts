@@ -164,17 +164,16 @@ class ApiClient {
     });
   }
 
-  async startInterview(interviewId: string, learningMode?: boolean) {
+  async startInterview(interviewId: string) {
     return this.request(`/interviews/${interviewId}/start`, {
       method: "POST",
-      body: JSON.stringify({ learning_mode: learningMode || false }),
     });
   }
 
-  async respondToQuestion(interviewId: string, answer: string, learningMode?: boolean) {
+  async respondToQuestion(interviewId: string, answer: string) {
     return this.request(`/interviews/${interviewId}/respond`, {
       method: "POST",
-      body: JSON.stringify({ answer, learning_mode: learningMode || false }),
+      body: JSON.stringify({ answer }),
     });
   }
 
@@ -190,6 +189,12 @@ class ApiClient {
 
   async getInterviewReport(interviewId: string) {
     return this.request(`/interviews/${interviewId}/report`);
+  }
+
+  async getReferenceAnswer(interviewId: string, messageId: string) {
+    return this.request(`/interviews/${interviewId}/messages/${messageId}/reference-answer`, {
+      method: "POST",
+    });
   }
 
   async deleteInterview(interviewId: string) {

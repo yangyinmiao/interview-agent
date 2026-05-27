@@ -22,7 +22,6 @@ export default function InterviewPage({
   const [hasStarted, setHasStarted] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [startError, setStartError] = useState(false);
-  const [learningMode, setLearningMode] = useState(false);
 
   const loadMessages = async () => {
     try {
@@ -60,7 +59,7 @@ export default function InterviewPage({
     setLoading(true);
     setStartError(false);
     try {
-      const result = await api.startInterview(id, learningMode);
+      const result = await api.startInterview(id);
       setHasStarted(true);
       if (result.status === "completed") {
         setStatus("completed");
@@ -99,7 +98,7 @@ export default function InterviewPage({
     setAnswer("");
 
     try {
-      const result = await api.respondToQuestion(id, currentAnswer, learningMode);
+      const result = await api.respondToQuestion(id, currentAnswer);
       await loadMessages();
 
       if (result.status === "completed") {
@@ -135,19 +134,7 @@ export default function InterviewPage({
         >
           &larr; 返回控制台
         </button>
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setLearningMode(!learningMode)}
-            className={`px-3 py-1 rounded-full text-sm font-medium transition-colors ${
-              learningMode
-                ? "bg-green-100 text-green-700 border border-green-300"
-                : "bg-gray-100 text-gray-500 border border-gray-200"
-            }`}
-          >
-            {learningMode ? "📖 学习: 开" : "📖 学习: 关"}
-          </button>
-          <h1 className="font-semibold">模拟面试</h1>
-        </div>
+        <h1 className="font-semibold">模拟面试</h1>
         {status === "active" && (
           <button
             onClick={endInterview}
@@ -192,7 +179,7 @@ export default function InterviewPage({
         </div>
       ) : (
         <>
-          <ChatPanel messages={messages} loading={loading} learningMode={learningMode} />
+          <ChatPanel messages={messages} loading={loading} interviewId={id} />
 
           {status === "completed" && report && (
             <div className="border-t bg-white">

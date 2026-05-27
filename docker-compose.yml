@@ -104,6 +104,10 @@ services:
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-3072}
       LLM_API_KEY: ${LLM_API_KEY}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend/app:/app/app
     depends_on:
       postgres:
         condition: service_healthy
