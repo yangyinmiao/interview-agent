@@ -72,7 +72,7 @@ export default function DashboardPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <FileUpload
             title="上传简历"
-            accept=".pdf,.docx,.txt"
+            accept=".pdf,.docx,.txt,.md"
             onUpload={async (file) => {
               await api.uploadResume(file);
               await loadData();
@@ -80,7 +80,7 @@ export default function DashboardPage() {
           />
           <FileUpload
             title="上传 JD"
-            accept=".pdf,.docx,.txt"
+            accept=".pdf,.docx,.txt,.md"
             onUpload={async (file) => {
               await api.uploadJD(file);
               await loadData();
@@ -88,7 +88,7 @@ export default function DashboardPage() {
           />
           <FileUpload
             title="上传题库"
-            accept=".pdf,.txt"
+            accept=".pdf,.txt,.md"
             onUpload={async (file) => {
               await api.uploadQuestionBank(file);
               await loadData();

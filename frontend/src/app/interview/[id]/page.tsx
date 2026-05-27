@@ -36,6 +36,16 @@ export default function InterviewPage({
       if (msgs && msgs.length > 0) {
         setHasStarted(true);
       }
+      // Try loading the report — if it exists, the interview was completed
+      try {
+        const r = await api.getInterviewReport(id);
+        if (r) {
+          setReport(r);
+          setStatus("completed");
+        }
+      } catch {
+        // Report not ready yet — interview is still active
+      }
     } catch (err) {
       console.error("Failed to load messages", err);
     }
