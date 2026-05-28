@@ -124,7 +124,7 @@ services:
       - langfuse_pg_data:/var/lib/postgresql/data
 
   langfuse:
-    image: ghcr.io/langfuse/langfuse:latest
+    image: ghcr.io/langfuse/langfuse:3
     ports:
       - "3001:3000"
     environment:
