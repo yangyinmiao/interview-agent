@@ -75,10 +75,10 @@ services:
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-3072}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-    # ports:  # celery-worker 不需要暴露端口
-    #   - "8000:8000"
+    ports:
+      - "8000:8000"
     volumes:
-      - ./backend:/app
+      - ./backend/app:/app/app
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,10 +104,6 @@ services:
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:-}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-3072}
       LLM_API_KEY: ${LLM_API_KEY}
-    ports:
-      - "8000:8000"
-    volumes:
-      - ./backend/app:/app/app
     depends_on:
       postgres:
         condition: service_healthy
