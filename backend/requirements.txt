@@ -34,6 +34,9 @@ minio==7.2.10
 # Celery
 celery[redis]==5.4.0
 
+# Observability
+langfuse==2.60.7
+
 # HTTP
 httpx==0.28.1
 aiofiles==24.1.0
