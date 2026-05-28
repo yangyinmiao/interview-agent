@@ -5,6 +5,7 @@ from sqlalchemy import select, delete
 
 from app.core.database import get_db, async_session_factory
 from app.core.tenant import get_current_tenant
+from app.services.llm_factory import get_langfuse_handler
 from app.models.tenant import Tenant
 from app.models.interview import Interview
 from app.models.interview_message import InterviewMessage
@@ -110,7 +111,10 @@ async def start_interview(
         "next_action": "prepare",
     }
 
-    result_state = await graph.ainvoke(initial_state)
+    result_state = await graph.ainvoke(
+        initial_state,
+        config={"callbacks": [get_langfuse_handler()], "metadata": {"langfuse_session_id": interview_id}},
+    )
 
     # Save the first question as a message
     question = result_state.get("current_question", "欢迎参加面试，请先简单介绍一下自己。")
@@ -204,7 +208,10 @@ async def respond_to_question(
         "next_action": "evaluate",
     }
 
-    result_state = await graph.ainvoke(state)
+    result_state = await graph.ainvoke(
+        state,
+        config={"callbacks": [get_langfuse_handler()], "metadata": {"langfuse_session_id": interview_id}},
+    )
 
     next_action = result_state.get("next_action", "end")
 
@@ -398,7 +405,10 @@ async def end_interview(
         "next_action": "report",
     }
 
-    result_state = await graph.ainvoke(state)
+    result_state = await graph.ainvoke(
+        state,
+        config={"callbacks": [get_langfuse_handler()], "metadata": {"langfuse_session_id": interview_id}},
+    )
 
     # Save report
     report_data = result_state.get("final_report", {})
