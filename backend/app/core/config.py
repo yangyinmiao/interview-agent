@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 
+    # LangFuse
+    langfuse_host: str = "http://localhost:3000"
+    langfuse_public_key: str = ""
+    langfuse_secret_key: str = ""
+
     # Interview defaults
     max_interview_rounds: int = 10
 
