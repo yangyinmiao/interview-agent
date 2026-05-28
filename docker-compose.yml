@@ -114,6 +114,34 @@ services:
       redis:
         condition: service_healthy
 
+  langfuse-postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: langfuse
+      POSTGRES_USER: langfuse
+      POSTGRES_PASSWORD: langfuse
+    volumes:
+      - langfuse_pg_data:/var/lib/postgresql/data
+
+  langfuse:
+    image: ghcr.io/langfuse/langfuse:latest
+    ports:
+      - "3001:3000"
+    environment:
+      DATABASE_URL: postgresql://langfuse:langfuse@langfuse-postgres:5432/langfuse
+      NEXTAUTH_SECRET: langfuse-dev-secret
+      NEXTAUTH_URL: http://localhost:3001
+      SALT: langfuse-dev-salt
+      LANGFUSE_INIT_ORG_ID: org_01
+      LANGFUSE_INIT_ORG_NAME: interview-agent
+      LANGFUSE_INIT_PROJECT_ID: proj_01
+      LANGFUSE_INIT_PROJECT_NAME: production
+      LANGFUSE_INIT_USER_EMAIL: admin@local.dev
+      LANGFUSE_INIT_USER_NAME: admin
+      LANGFUSE_INIT_USER_PASSWORD: admin123
+    depends_on:
+      - langfuse-postgres
+
   frontend:
     build: ./frontend
     command: npm run dev
@@ -132,3 +160,4 @@ volumes:
   pg_data:
   qdrant_data:
   minio_data:
+  langfuse_pg_data:
