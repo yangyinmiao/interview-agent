@@ -75,8 +75,8 @@ services:
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-3072}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
-    ports:
-      - "8000:8000"
+    # ports:  # celery-worker 不需要暴露端口
+    #   - "8000:8000"
     volumes:
       - ./backend:/app
     depends_on:
