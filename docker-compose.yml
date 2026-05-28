@@ -56,7 +56,11 @@ services:
       retries: 5
 
   backend:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:2080}
+        HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:2080}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       DATABASE_URL: postgresql+asyncpg://agent:${PG_PASSWORD:-agent123}@postgres:5432/interview_agent
@@ -75,6 +79,9 @@ services:
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:-3072}
       JWT_SECRET: ${JWT_SECRET:-dev-secret-change-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000,http://127.0.0.1:3000}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-http://langfuse:3000}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY}
     ports:
       - "8000:8000"
     volumes:
@@ -90,7 +97,11 @@ services:
         condition: service_healthy
 
   celery-worker:
-    build: ./backend
+    build:
+      context: ./backend
+      args:
+        HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:2080}
+        HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:2080}
     command: celery -A app.tasks.celery_app worker -l info -c 2
     environment:
       DATABASE_URL: postgresql+asyncpg://agent:${PG_PASSWORD:-agent123}@postgres:5432/interview_agent
@@ -124,7 +135,7 @@ services:
       - langfuse_pg_data:/var/lib/postgresql/data
 
   langfuse:
-    image: ghcr.io/langfuse/langfuse:3
+    image: ghcr.io/langfuse/langfuse:2
     ports:
       - "3001:3000"
     environment:

@@ -2,7 +2,7 @@ from typing import List
 from langchain_core.language_models import BaseChatModel
 from langchain_core.embeddings import Embeddings
 from langchain_openai import ChatOpenAI
-from langfuse.langchain import CallbackHandler
+from langfuse.callback import CallbackHandler
 from openai import OpenAI
 from app.core.config import get_settings
 

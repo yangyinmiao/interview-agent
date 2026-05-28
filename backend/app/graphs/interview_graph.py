@@ -6,7 +6,6 @@ from typing import Literal
 from langgraph.graph import StateGraph, END
 from langgraph.graph.state import CompiledStateGraph
 from sqlalchemy.ext.asyncio import AsyncSession
-from langfuse import observe
 
 from app.graphs.states import InterviewState
 from app.agents.resume_agent import ResumeAgent
@@ -35,7 +34,6 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
 
     # === Node Definitions ===
 
-    @observe()
     async def prepare_context(state: InterviewState) -> InterviewState:
         """Prepare interview context by running ResumeAgent, JDAgent, QBankAgent sequentially."""
         tenant_id = state["tenant_id"]
@@ -86,7 +84,7 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
 
         return state
 
-    @observe()
+
     async def generate_question(state: InterviewState) -> InterviewState:
         """Generate the next interview question."""
         round_count = state.get("round_count", 0)
@@ -115,7 +113,7 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
         )
         return state
 
-    @observe()
+
     async def evaluate_answer(state: InterviewState) -> InterviewState:
         """Evaluate the candidate's answer."""
         start = time.time()
@@ -149,7 +147,7 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
         )
         return state
 
-    @observe()
+
     async def generate_report(state: InterviewState) -> InterviewState:
         """Generate the final interview report."""
         start = time.time()

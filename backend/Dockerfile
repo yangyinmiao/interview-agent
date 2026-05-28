@@ -2,7 +2,12 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
+# Configure apt proxy for China network (ARG only, not exported to runtime)
+ARG HTTP_PROXY
+ARG HTTPS_PROXY
+
+RUN export http_proxy=$HTTP_PROXY && export https_proxy=$HTTPS_PROXY && \
+    apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     && rm -rf /var/lib/apt/lists/*
 
