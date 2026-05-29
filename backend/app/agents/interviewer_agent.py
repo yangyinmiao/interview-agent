@@ -63,8 +63,15 @@ class InterviewerAgent(BaseAgent):
         return {"question": content.strip(), "topic": "general", "difficulty": "medium"}
 
     async def astream_question(self, **kwargs) -> AsyncGenerator[str, None]:
-        """Stream-generate the next interview question, yielding text chunks."""
+        """Stream-generate the next interview question, yielding text chunks.
+        Uses a plain-text prompt (no JSON) so tokens are directly displayable.
+        """
         prompt = self._build_question_prompt(**kwargs)
+        # Replace the JSON output instruction with plain text instruction
+        prompt = prompt.replace(
+            '\n请以JSON格式返回:\n{"question": "你的问题", "topic": "话题类别", "difficulty": "easy/medium/hard"}',
+            '\n请直接输出面试问题，不要包含任何JSON格式或额外说明，只输出问题本身。'
+        )
         async for chunk in self.small_llm.astream(prompt):
             if hasattr(chunk, 'content') and chunk.content:
                 yield chunk.content
@@ -133,14 +140,49 @@ class InterviewerAgent(BaseAgent):
             return "未提供简历信息"
         if "error" in analysis:
             return "简历分析尚未完成"
-        return json.dumps(analysis, ensure_ascii=False, indent=2)
+
+        # Extract only what the interviewer needs — skip full skill list and redundant data
+        parts = []
+        if analysis.get("profile_summary"):
+            parts.append(f"背景: {analysis['profile_summary']}")
+        if analysis.get("years_of_experience"):
+            parts.append(f"经验: {analysis['years_of_experience']}")
+
+        # Key strengths (max 3)
+        strengths = analysis.get("key_strengths", [])
+        if strengths:
+            parts.append("核心优势: " + "; ".join(strengths[:3]))
+
+        # Experience highlights (max 3 entries, 2 highlights each)
+        exp_list = analysis.get("experience", [])
+        if exp_list:
+            exp_lines = []
+            for exp in exp_list[:3]:
+                highlights = exp.get("highlights", [])[:2]
+                exp_lines.append(f"- {exp.get('role', '')} @ {exp.get('company', '')} ({exp.get('duration', '')}): {'; '.join(highlights)}")
+            parts.append("经历:\n" + "\n".join(exp_lines))
+
+        # Top skills (max 10)
+        skills = analysis.get("skills", [])
+        if skills:
+            parts.append(f"技能: {', '.join(skills[:10])}")
+
+        return "\n".join(parts)
 
     def _format_jd(self, analysis: Optional[dict]) -> str:
         if not analysis:
             return "未提供JD信息"
         if "error" in analysis:
             return "JD分析尚未完成"
-        return json.dumps(analysis, ensure_ascii=False, indent=2)
+
+        parts = []
+        if analysis.get("title"):
+            parts.append(f"职位: {analysis['title']}")
+        if analysis.get("required_skills"):
+            parts.append(f"必备技能: {', '.join(analysis['required_skills'][:8])}")
+        if analysis.get("key_points"):
+            parts.append(f"考察重点: {', '.join(analysis['key_points'])}")
+        return "\n".join(parts) if parts else "JD分析数据不完整"
 
     def _format_questions(self, questions: Optional[list[dict]]) -> str:
         if not questions:

@@ -120,27 +120,38 @@ export default function InterviewPage({
     setAnswer("");
 
     const tempId = `temp-${Date.now()}`;
-    const optimisticMsg: Message = {
-      id: tempId,
-      role: "candidate",
-      content: currentAnswer,
-    };
-    setMessages((prev) => [...prev, optimisticMsg]);
+    setMessages((prev) => [...prev, { id: tempId, role: "candidate", content: currentAnswer }]);
 
+    // Placeholder for streaming interviewer message
+    const streamId = `stream-${Date.now()}`;
+    setMessages((prev) => [...prev, { id: streamId, role: "interviewer", content: "" }]);
+
+    let isCompleted = false;
     try {
-      const result = await api.respondToQuestion(id, currentAnswer);
-      setRoundCount(result.round_count);
-
-      if (result.status === "completed") {
-        setStatus("completed");
-        // Load messages first so the "面试已结束" system message is visible
-        await loadMessages();
-        loadReport();
-      } else {
-        await loadMessages();
+      for await (const evt of api.respondStream(id, currentAnswer)) {
+        if (evt.type === "ping") {
+          // heartbeat, ignore
+        } else if (evt.type === "token") {
+          setLoading(false);
+          setMessages((prev) =>
+            prev.map((m) => (m.id === streamId ? { ...m, content: m.content + evt.content } : m))
+          );
+        } else if (evt.type === "error") {
+          throw new Error(evt.content || "Stream error");
+        } else if (evt.type === "done") {
+          setLoading(false);
+          setRoundCount(evt.round_count || roundCount + 1);
+          if (evt.completed) {
+            isCompleted = true;
+            setStatus("completed");
+          }
+        }
       }
+      // Stream ended — reload from DB to get real IDs
+      await loadMessages();
+      if (isCompleted) loadReport();
     } catch (err) {
-      setMessages((prev) => prev.filter((m) => m.id !== tempId));
+      setMessages((prev) => prev.filter((m) => m.id !== tempId && m.id !== streamId));
       alert("Failed to submit answer");
     } finally {
       setLoading(false);

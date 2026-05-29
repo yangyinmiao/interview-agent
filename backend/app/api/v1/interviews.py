@@ -162,10 +162,13 @@ async def start_interview(
         "next_action": "prepare",
     }
 
-    result_state = await graph.ainvoke(
-        initial_state,
-        config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
-    )
+    try:
+        result_state = await graph.ainvoke(
+            initial_state,
+            config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
+        )
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"LLM error: {str(e)}")
 
     # Persist context so subsequent requests don't need to re-analyse
     interview.context_cache = {
@@ -359,143 +362,103 @@ async def respond_stream(
     """Streaming response: evaluate answer then stream question token-by-token via SSE."""
     from app.models.interview import Interview
     from app.models.interview_message import InterviewMessage
+    from app.models.interview_report import InterviewReport
+    from datetime import datetime, timezone
     from app.agents.evaluator_agent import EvaluatorAgent
     from app.agents.interviewer_agent import InterviewerAgent
     from app.agents.supervisor import SupervisorAgent
+    from app.graphs.states import InterviewState
+    import re as _re
 
-    async with async_session_factory() as db:
-        result = await db.execute(
-            select(Interview).where(Interview.id == interview_id, Interview.tenant_id == tenant.id)
-        )
-        interview = result.scalar_one_or_none()
-        if not interview:
-            raise HTTPException(status_code=404, detail="Interview not found")
-        if interview.status != "active":
-            raise HTTPException(status_code=400, detail="Interview is not active")
-
-        # Save candidate's answer (commit immediately so loadMessages can see it)
-        answer_msg = InterviewMessage(
-            interview_id=interview.id,
-            role="candidate",
-            content=data.answer,
-        )
-        db.add(answer_msg)
-        await db.commit()
-
-        # Build question_history from DB messages
-        messages_result = await db.execute(
-            select(InterviewMessage)
-            .where(InterviewMessage.interview_id == interview.id)
-            .order_by(InterviewMessage.created_at.asc())
-        )
-        all_messages = messages_result.scalars().all()
-
-        question_history = []
-        last_question = ""
-        last_question_topic = "general"
-        for msg in all_messages:
-            if msg.role == "interviewer":
-                last_question = msg.content
-                last_question_topic = (msg.meta_data or {}).get("topic", "general")
-            elif msg.role == "candidate" and last_question:
-                question_history.append({
-                    "q": last_question,
-                    "a": msg.content,
-                    "topic": last_question_topic,
-                })
-                last_question = ""
-
-        round_count = len(question_history)
-        ctx = interview.context_cache or {}
-
-        # Step 1: Evaluate answer (fast, small model)
-        evaluator = EvaluatorAgent()
-        evaluation = await evaluator.evaluate_single(
-            question=all_messages[-2].content if len(all_messages) >= 2 else "",
-            answer=data.answer,
-        )
-        question_history.append({
-            "q": all_messages[-2].content if len(all_messages) >= 2 else "",
-            "a": data.answer,
-            "evaluation": evaluation,
-            "topic": evaluation.get("topic", "general"),
-        })
-
-        # Step 2: Router decision
-        supervisor = SupervisorAgent()
-        from app.graphs.states import InterviewState
-        router_state: InterviewState = {
-            "tenant_id": str(tenant.id),
-            "interview_id": interview_id,
-            "resume_id": str(interview.resume_id) if interview.resume_id else "",
-            "jd_id": str(interview.jd_id) if interview.jd_id else "",
-            "question_bank_id": str(interview.question_bank_id) if interview.question_bank_id else "",
-            "interview_mode": interview.mode or "basic",
-            "max_rounds": 10,
-            "resume_analysis": ctx.get("resume_analysis"),
-            "jd_analysis": ctx.get("jd_analysis"),
-            "retrieved_questions": ctx.get("retrieved_questions", []),
-            "current_question": "",
-            "current_answer": data.answer,
-            "question_history": question_history,
-            "follow_up_depth": interview.follow_up_depth or 0,
-            "round_count": round_count + 1,
-            "answer_evaluations": [evaluation],
-            "final_report": None,
-            "messages": [],
-            "next_action": "",
-        }
-        decision = supervisor.router(router_state)
-
-        if decision == "end":
-            # Generate final report and close
-            from app.models.interview_report import InterviewReport
-            from datetime import datetime, timezone
-
-            question_text = json.dumps(question_history, ensure_ascii=False, indent=2)
-            evaluations_text = json.dumps([evaluation], ensure_ascii=False)
-            report_data = await evaluator.evaluate_overall(
-                resume_summary=json.dumps(ctx.get("resume_analysis", {}), ensure_ascii=False),
-                jd_summary=json.dumps(ctx.get("jd_analysis", {}), ensure_ascii=False),
-                conversation_history=question_text,
-                answer_evaluations=evaluations_text,
+    async def generate():
+        async with async_session_factory() as db:
+            result = await db.execute(
+                select(Interview).where(Interview.id == interview_id, Interview.tenant_id == tenant.id)
             )
-            interview.status = "completed"
-            interview.completed_at = datetime.now(timezone.utc)
-            report = InterviewReport(
-                interview_id=interview.id,
-                tenant_id=tenant.id,
-                overall_score=report_data.get("overall_score"),
-                scores=report_data.get("scores"),
-                strengths=report_data.get("strengths", []),
-                weaknesses=report_data.get("weaknesses", []),
-                suggestions=report_data.get("suggestions", []),
-                raw_analysis=str(report_data),
-            )
-            db.add(report)
-            closing = "感谢您参加本次面试，祝您一切顺利！"
-            closing_msg = InterviewMessage(interview_id=interview.id, role="interviewer", content=closing)
-            db.add(closing_msg)
+            interview = result.scalar_one_or_none()
+            if not interview:
+                yield f"data: {json.dumps({'type': 'error', 'content': 'Interview not found'})}\n\n"
+                return
+            if interview.status != "active":
+                yield f"data: {json.dumps({'type': 'error', 'content': 'Interview is not active'})}\n\n"
+                return
+
+            # Save candidate answer immediately
+            db.add(InterviewMessage(interview_id=interview.id, role="candidate", content=data.answer))
             await db.commit()
 
-            async def end_stream():
-                yield f"data: {json.dumps({'type': 'status', 'content': 'completed'})}\n\n"
-            return StreamingResponse(end_stream(), media_type="text/event-stream")
+            # Build question_history
+            msgs_result = await db.execute(
+                select(InterviewMessage)
+                .where(InterviewMessage.interview_id == interview.id)
+                .order_by(InterviewMessage.created_at.asc())
+            )
+            all_msgs = msgs_result.scalars().all()
+            question_history, last_q, last_topic = [], "", "general"
+            for msg in all_msgs:
+                if msg.role == "interviewer":
+                    last_q, last_topic = msg.content, (msg.meta_data or {}).get("topic", "general")
+                elif msg.role == "candidate" and last_q:
+                    question_history.append({"q": last_q, "a": msg.content, "topic": last_topic})
+                    last_q = ""
 
-        # Step 3: Stream question generation
-        interviewer = InterviewerAgent()
-        last_eval = evaluation
+            round_count = len(question_history)
+            ctx = interview.context_cache or {}
+            prev_q = all_msgs[-2].content if len(all_msgs) >= 2 else ""
 
-        async def event_stream():
-            # Send evaluation status
-            eval_json = json.dumps({
-                "type": "evaluated",
-                "score": evaluation.get("score"),
-                "feedback": evaluation.get("brief_feedback", ""),
-            }, ensure_ascii=False)
-            yield f"data: {eval_json}\n\n"
+            # Evaluate
+            evaluator = EvaluatorAgent()
+            evaluation = await evaluator.evaluate_single(question=prev_q, answer=data.answer)
+            question_history.append({"q": prev_q, "a": data.answer, "evaluation": evaluation, "topic": evaluation.get("topic", "general")})
+
+            # Router
+            supervisor = SupervisorAgent()
+            router_state: InterviewState = {
+                "tenant_id": str(tenant.id), "interview_id": interview_id,
+                "resume_id": str(interview.resume_id) if interview.resume_id else "",
+                "jd_id": str(interview.jd_id) if interview.jd_id else "",
+                "question_bank_id": str(interview.question_bank_id) if interview.question_bank_id else "",
+                "interview_mode": interview.mode or "basic", "max_rounds": 10,
+                "resume_analysis": ctx.get("resume_analysis"),
+                "jd_analysis": ctx.get("jd_analysis"),
+                "retrieved_questions": ctx.get("retrieved_questions", []),
+                "current_question": "", "current_answer": data.answer,
+                "question_history": question_history,
+                "follow_up_depth": interview.follow_up_depth or 0,
+                "round_count": round_count + 1,
+                "answer_evaluations": [evaluation], "final_report": None, "messages": [], "next_action": "",
+            }
+            decision = supervisor.router(router_state)
+
+            if decision == "end":
+                # Final report
+                q_text = json.dumps(question_history, ensure_ascii=False, indent=2)
+                report_data = await evaluator.evaluate_overall(
+                    resume_summary=json.dumps(ctx.get("resume_analysis", {}), ensure_ascii=False),
+                    jd_summary=json.dumps(ctx.get("jd_analysis", {}), ensure_ascii=False),
+                    conversation_history=q_text,
+                    answer_evaluations=json.dumps([evaluation], ensure_ascii=False),
+                )
+                interview.status = "completed"
+                interview.completed_at = datetime.now(timezone.utc)
+                db.add(InterviewReport(
+                    interview_id=interview.id, tenant_id=tenant.id,
+                    overall_score=report_data.get("overall_score"), scores=report_data.get("scores"),
+                    strengths=report_data.get("strengths", []), weaknesses=report_data.get("weaknesses", []),
+                    suggestions=report_data.get("suggestions", []), raw_analysis=str(report_data),
+                ))
+                closing = "感谢您参加本次面试，祝您一切顺利！"
+                db.add(InterviewMessage(interview_id=interview.id, role="interviewer", content=closing))
+                db.add(InterviewMessage(interview_id=interview.id, role="system", content="面试已结束，请查看评估报告。"))
+                await db.commit()
+                yield f"data: {json.dumps({'type': 'done', 'content': closing, 'round_count': round_count + 1, 'completed': True})}\n\n"
+                return
+
+            # Send evaluation result
+            yield f"data: {json.dumps({'type': 'evaluated', 'score': evaluation.get('score'), 'feedback': evaluation.get('brief_feedback', '')}, ensure_ascii=False)}\n\n"
 
             # Stream question tokens
+            interviewer = InterviewerAgent()
             full_question = ""
             async for token in interviewer.astream_question(
                 mode=interview.mode or "basic",
@@ -506,37 +469,65 @@ async def respond_stream(
                 follow_up_depth=interview.follow_up_depth or 0,
                 round_count=round_count + 1,
                 max_rounds=10,
-                last_evaluation=last_eval,
+                last_evaluation=evaluation,
             ):
                 full_question += token
                 yield f"data: {json.dumps({'type': 'token', 'content': token}, ensure_ascii=False)}\n\n"
 
-            # Parse question from JSON response
-            import re as _re
-            cleaned = _re.sub(r"^```(?:json)?\s*", "", full_question.strip(), flags=_re.IGNORECASE)
-            cleaned = _re.sub(r"\s*```$", "", cleaned.strip())
-            try:
-                parsed = json.loads(cleaned)
-                question_text = parsed.get("question", full_question)
-                topic = parsed.get("topic", "general")
-            except json.JSONDecodeError:
-                question_text = full_question
-                topic = "general"
+            # Stream returns plain text, no JSON parsing needed
+            question_text = full_question.strip()
+            topic = "general"
 
-            # Save interviewer message to DB
-            question_msg = InterviewMessage(
-                interview_id=interview.id,
-                role="interviewer",
-                content=question_text,
-                meta_data={"topic": topic},
-            )
-            db.add(question_msg)
+            db.add(InterviewMessage(interview_id=interview.id, role="interviewer", content=question_text, meta_data={"topic": topic}))
             await db.commit()
 
-            # Send done
+            # Pre-generate reference answer in background (so clicking "查看参考答案" is instant)
+            import asyncio as _asyncio
+            async def _prefetch_ref(msg_id: str, q: str):
+                try:
+                    from app.agents.interviewer_agent import InterviewerAgent as _IA
+                    ref = await _IA().generate_reference_answer(question=q)
+                    async with async_session_factory() as _db:
+                        _r = await _db.execute(select(InterviewMessage).where(InterviewMessage.id == msg_id))
+                        _msg = _r.scalar_one_or_none()
+                        if _msg:
+                            _msg.meta_data = {**(_msg.meta_data or {}), "reference_answer": ref}
+                            await _db.commit()
+                except Exception:
+                    pass
+
+            # Get the ID of the message we just saved
+            _saved = await db.execute(
+                select(InterviewMessage)
+                .where(InterviewMessage.interview_id == interview.id, InterviewMessage.role == "interviewer")
+                .order_by(InterviewMessage.created_at.desc())
+                .limit(1)
+            )
+            _saved_msg = _saved.scalar_one_or_none()
+            if _saved_msg:
+                _asyncio.create_task(_prefetch_ref(str(_saved_msg.id), question_text))
+
             yield f"data: {json.dumps({'type': 'done', 'content': question_text, 'round_count': round_count + 1}, ensure_ascii=False)}\n\n"
 
-        return StreamingResponse(event_stream(), media_type="text/event-stream")
+    async def safe_generate():
+        # Yield a ping immediately so CORS headers are sent before any DB work
+        yield f"data: {json.dumps({'type': 'ping'})}\n\n"
+        try:
+            async for chunk in generate():
+                yield chunk
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'content': str(e)}, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        safe_generate(),
+        media_type="text/event-stream",
+        headers={
+            "Access-Control-Allow-Origin": "http://localhost:3000",
+            "Access-Control-Allow-Credentials": "true",
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+        },
+    )
 
 
 @router.get("/{interview_id}/messages", response_model=List[InterviewMessageResponse])

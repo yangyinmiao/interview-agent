@@ -209,6 +209,7 @@ class ApiClient {
       method: "POST",
       headers,
       body: JSON.stringify({ answer }),
+      credentials: "include",
     });
 
     if (!res.ok) {

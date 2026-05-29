@@ -129,7 +129,7 @@ export default function ChatPanel({ messages, loading, interviewId }: ChatPanelP
         <ChatBubble key={msg.id} msg={msg} interviewId={interviewId} />
       ))}
 
-      {loading && (
+      {loading && !messages.some((m) => m.id.startsWith("stream-")) && (
         <div className="chat-row chat-row-interviewer">
           <div className="chat-avatar chat-avatar-interviewer">官</div>
           <div className="chat-bubble-wrap chat-bubble-wrap-interviewer">
