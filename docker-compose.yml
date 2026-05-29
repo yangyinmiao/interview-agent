@@ -56,11 +56,7 @@ services:
       retries: 5
 
   backend:
-    build:
-      context: ./backend
-      args:
-        HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:2080}
-        HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:2080}
+    build: ./backend
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       DATABASE_URL: postgresql+asyncpg://agent:${PG_PASSWORD:-agent123}@postgres:5432/interview_agent
@@ -98,11 +94,7 @@ services:
         condition: service_healthy
 
   celery-worker:
-    build:
-      context: ./backend
-      args:
-        HTTP_PROXY: ${HTTP_PROXY:-http://host.docker.internal:2080}
-        HTTPS_PROXY: ${HTTPS_PROXY:-http://host.docker.internal:2080}
+    build: ./backend
     command: celery -A app.tasks.celery_app worker -l info -c 2
     environment:
       DATABASE_URL: postgresql+asyncpg://agent:${PG_PASSWORD:-agent123}@postgres:5432/interview_agent

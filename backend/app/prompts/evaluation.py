@@ -2,19 +2,24 @@
 
 ANSWER_EVALUATION_PROMPT = """你是一位专业的面试评估官。请评估候选人对以下问题的回答质量。
 
-## 面试问题
+<question>
 {question}
+</question>
 
-## 候选人回答
+<answer>
 {answer}
+</answer>
 
-## 评估标准
+<criteria>
 - 技术准确性: 回答中的技术知识是否正确
 - 深度与广度: 是否展示了深入的理解或广阔的知识面
 - 表达清晰度: 表达是否逻辑清晰、条理分明
 - 实用经验: 是否结合了实际项目经验
+</criteria>
 
-注意: should_follow_up为true表示候选人回答不完整或有深挖价值；如果候选人表示不知道则should_follow_up必须为false。
+<note>
+should_follow_up 为 true 表示候选人回答不完整或有深挖价值；如果候选人表示不知道则 should_follow_up 必须为 false。
+</note>
 
 请以JSON格式返回评估结果:
 {{
@@ -32,17 +37,21 @@ ANSWER_EVALUATION_PROMPT = """你是一位专业的面试评估官。请评估�
 
 FINAL_REPORT_PROMPT = """你是一位资深面试评估专家。请根据完整面试记录生成综合评估报告。
 
-## 候选人背景
+<resume>
 {resume_summary}
+</resume>
 
-## 职位要求
+<jd>
 {jd_summary}
+</jd>
 
-## 面试对话记录
+<conversation>
 {conversation_history}
+</conversation>
 
-## 各题评估
+<evaluations>
 {answer_evaluations}
+</evaluations>
 
 请以JSON格式返回综合评估:
 {{
@@ -63,8 +72,9 @@ FINAL_REPORT_PROMPT = """你是一位资深面试评估专家。请根据完整�
 
 RESUME_ANALYSIS_PROMPT = """你是一位专业的简历分析专家。请分析以下简历，提取关键信息。
 
-## 简历内容
+<resume_raw>
 {raw_text}
+</resume_raw>
 
 请以JSON格式返回分析结果:
 {{
@@ -82,8 +92,9 @@ RESUME_ANALYSIS_PROMPT = """你是一位专业的简历分析专家。请分析�
 
 JD_ANALYSIS_PROMPT = """你是一位专业的JD分析专家。请分析以下职位描述，提取关键需求。
 
-## JD内容
+<jd_raw>
 {raw_text}
+</jd_raw>
 
 请以JSON格式返回分析结果:
 {{

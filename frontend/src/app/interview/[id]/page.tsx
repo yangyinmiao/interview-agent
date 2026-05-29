@@ -27,6 +27,8 @@ export default function InterviewPage({
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<any>(null);
+  const [roundCount, setRoundCount] = useState(0);
+  const MAX_ROUNDS = 10;
   const [hasStarted, setHasStarted] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [startError, setStartError] = useState(false);
@@ -37,15 +39,27 @@ export default function InterviewPage({
       setMessages((msgs || []) as Message[]);
       if (msgs && msgs.length > 0) {
         setHasStarted(true);
+        // Calculate round count: interviewer messages before the closing system message
+        const closingIdx = msgs.findIndex(
+          (m: Message) => m.role === "system" && m.content?.includes("面试已结束")
+        );
+        const relevantMsgs = closingIdx >= 0 ? msgs.slice(0, closingIdx) : msgs;
+        const qCount = relevantMsgs.filter((m: Message) => m.role === "interviewer").length;
+        if (qCount > 0) setRoundCount(qCount);
       }
-      try {
-        const r = await api.getInterviewReport(id);
-        if (r && r.scores) {
-          setReport(r);
-          setStatus("completed");
+      const hasClosingMsg = msgs?.some(
+        (m: Message) => m.role === "system" && m.content?.includes("面试已结束")
+      );
+      if (hasClosingMsg || status === "completed") {
+        try {
+          const r = await api.getInterviewReport(id);
+          if (r && r.scores) {
+            setReport(r);
+            setStatus("completed");
+          }
+        } catch {
+          // Report not ready yet
         }
-      } catch {
-        // Report not ready yet
       }
     } catch (err) {
       console.error("Failed to load messages", err);
@@ -69,6 +83,7 @@ export default function InterviewPage({
     try {
       const result = await api.startInterview(id);
       setHasStarted(true);
+      setRoundCount(result.round_count || 1);
       if (result.status === "completed") {
         setStatus("completed");
         loadReport();
@@ -90,7 +105,6 @@ export default function InterviewPage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
-  // Auto-start interview when page loads with no messages
   useEffect(() => {
     if (!initializing && !hasStarted && status === "active") {
       startInterview();
@@ -105,7 +119,6 @@ export default function InterviewPage({
     const currentAnswer = answer;
     setAnswer("");
 
-    // Optimistic update: show candidate message immediately
     const tempId = `temp-${Date.now()}`;
     const optimisticMsg: Message = {
       id: tempId,
@@ -116,15 +129,18 @@ export default function InterviewPage({
 
     try {
       const result = await api.respondToQuestion(id, currentAnswer);
-      // Reload from backend — replaces temp message with real data
-      await loadMessages();
+      setLoading(false);
+      setRoundCount(result.round_count);
 
       if (result.status === "completed") {
         setStatus("completed");
+        // Load messages first so the "面试已结束" system message is visible
+        await loadMessages();
         loadReport();
+      } else {
+        await loadMessages();
       }
     } catch (err) {
-      // Remove optimistic message on failure
       setMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert("Failed to submit answer");
     } finally {
@@ -147,24 +163,39 @@ export default function InterviewPage({
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white shadow-sm border-b px-4 py-3 flex justify-between items-center">
-        <button
-          onClick={() => router.push("/dashboard")}
-          className="text-blue-600 hover:underline text-sm"
-        >
-          &larr; 返回控制台
-        </button>
-        <h1 className="font-semibold">模拟面试</h1>
-        {status === "active" && (
+      <header className="bg-white shadow-sm border-b px-4 py-3">
+        <div className="flex justify-between items-center">
           <button
-            onClick={endInterview}
-            className="text-red-600 hover:underline text-sm"
+            onClick={() => router.push("/dashboard")}
+            className="text-blue-600 hover:underline text-sm"
           >
-            结束面试
+            &larr; 返回控制台
           </button>
-        )}
-        {status === "completed" && (
-          <span className="text-green-600 text-sm font-medium">已完成</span>
+          <h1 className="font-semibold">模拟面试</h1>
+          {status === "active" && (
+            <button
+              onClick={endInterview}
+              className="text-red-600 hover:underline text-sm"
+            >
+              结束面试
+            </button>
+          )}
+          {status === "completed" && (
+            <span className="text-green-600 text-sm font-medium">已完成</span>
+          )}
+        </div>
+        {hasStarted && (
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-blue-500 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min((roundCount / MAX_ROUNDS) * 100, 100)}%` }}
+              />
+            </div>
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              {roundCount} / {MAX_ROUNDS} 轮
+            </span>
+          </div>
         )}
       </header>
 

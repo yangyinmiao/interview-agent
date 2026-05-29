@@ -195,6 +195,49 @@ class ApiClient {
     });
   }
 
+  /** Stream question via SSE. Returns an async generator of events. */
+  async *respondStream(interviewId: string, answer: string): AsyncGenerator<{
+    type: string; content: string; score?: number; feedback?: string; round_count?: number;
+  }> {
+    const token = this.getToken();
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+    };
+    if (token) headers["Authorization"] = `Bearer ${token}`;
+
+    const res = await fetch(`${API_BASE}/interviews/${interviewId}/respond-stream`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ answer }),
+    });
+
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try { const err = await res.json(); detail = err.detail || JSON.stringify(err); } catch {}
+      throw new Error(detail);
+    }
+
+    const reader = res.body?.getReader();
+    if (!reader) throw new Error("No response body");
+
+    const decoder = new TextDecoder();
+    let buffer = "";
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      for (const line of lines) {
+        if (line.startsWith("data: ")) {
+          try {
+            yield JSON.parse(line.slice(6));
+          } catch {}
+        }
+      }
+    }
+  }
+
   async getInterviewMessages(interviewId: string) {
     return this.request(`/interviews/${interviewId}/messages`);
   }

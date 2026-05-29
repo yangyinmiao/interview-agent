@@ -1,9 +1,10 @@
 """Interviewer agent - the core interview conversation driver."""
 
 import json
-from typing import Optional
+from typing import Optional, AsyncGenerator
 from app.agents.base import BaseAgent
 from app.prompts.interview_modes import get_interview_prompt
+from app.services.llm_factory import get_llm_small
 from app.core.logging import get_structured_logger
 
 logger = get_structured_logger("agents.interviewer")
@@ -11,6 +12,16 @@ logger = get_structured_logger("agents.interviewer")
 
 class InterviewerAgent(BaseAgent):
     """Agent responsible for generating interview questions and managing the conversation."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._small_llm = None
+
+    @property
+    def small_llm(self):
+        if self._small_llm is None:
+            self._small_llm = get_llm_small()
+        return self._small_llm
 
     async def generate_question(
         self,
@@ -25,14 +36,59 @@ class InterviewerAgent(BaseAgent):
         last_evaluation: Optional[dict] = None,
     ) -> dict:
         """Generate the next interview question based on mode and context."""
+        prompt = self._build_question_prompt(
+            mode=mode,
+            resume_analysis=resume_analysis,
+            jd_analysis=jd_analysis,
+            retrieved_questions=retrieved_questions,
+            question_history=question_history,
+            follow_up_depth=follow_up_depth,
+            round_count=round_count,
+            max_rounds=max_rounds,
+            last_evaluation=last_evaluation,
+        )
+        response = await self.small_llm.ainvoke(prompt)
 
+        content = response.content if hasattr(response, 'content') else str(response)
+        result = self.extract_json(content)
+        if result and isinstance(result, dict) and result.get("question"):
+            logger.info(
+                "Question generated",
+                question_preview=result.get("question", "")[:100],
+                topic=result.get("topic", "unknown"),
+                difficulty=result.get("difficulty", "medium"),
+            )
+            return result
+        logger.warning("Failed to parse question JSON, using raw response")
+        return {"question": content.strip(), "topic": "general", "difficulty": "medium"}
+
+    async def astream_question(self, **kwargs) -> AsyncGenerator[str, None]:
+        """Stream-generate the next interview question, yielding text chunks."""
+        prompt = self._build_question_prompt(**kwargs)
+        async for chunk in self.small_llm.astream(prompt):
+            if hasattr(chunk, 'content') and chunk.content:
+                yield chunk.content
+
+    def _build_question_prompt(
+        self,
+        mode: str,
+        resume_analysis: Optional[dict],
+        jd_analysis: Optional[dict],
+        retrieved_questions: Optional[list[dict]],
+        question_history: list[dict],
+        follow_up_depth: int,
+        round_count: int,
+        max_rounds: int,
+        last_evaluation: Optional[dict] = None,
+    ) -> str:
+        """Build the full prompt for question generation."""
         resume_summary = self._format_resume(resume_analysis)
         jd_summary = self._format_jd(jd_analysis)
         questions_ref = self._format_questions(retrieved_questions)
         topics = self._extract_topics(question_history)
 
         logger.info(
-            f"Generating question for mode={mode}",
+            f"Building question prompt for mode={mode}",
             mode=mode,
             round_count=round_count,
             max_rounds=max_rounds,
@@ -57,30 +113,17 @@ class InterviewerAgent(BaseAgent):
 
         # For the very first question, instruct the LLM to open with a brief greeting
         if round_count == 0 and not question_history:
-            prompt = '【面试开场】这是面试的第一个问题。请先用一句简短友好的开场白（如"你好，欢迎参加本次面试，我们先从...开始"），然后直接提出第一个问题。\n\n' + prompt
+            prompt = prompt + '\n<instruction>这是面试的第一个问题。请先用一句简短友好的开场白（如"你好，欢迎参加本次面试，我们先从...开始"），然后直接提出第一个问题。</instruction>'
 
         if question_history:
-            history_text = "\n---\n".join(
-                f"第{i+1}轮 - 面试官: {h['q']}\n候选人: {h['a']}"
-                for i, h in enumerate(question_history[-5:])
-            )
-            prompt += f"\n\n## 最近对话历史\n{history_text}\n\n请根据以上对话历史，提出下一个问题。"
+            history_lines = []
+            for i, h in enumerate(question_history[-5:]):
+                history_lines.append(f"<round num=\"{i+1}\">\n<question>{h['q']}</question>\n<answer>{h['a']}</answer>\n</round>")
+            history_text = "\n".join(history_lines)
+            prompt += f"\n\n<history>\n{history_text}\n</history>"
 
         prompt += "\n\n请以JSON格式返回:\n{\"question\": \"你的问题\", \"topic\": \"话题类别\", \"difficulty\": \"easy/medium/hard\"}"
-
-        response = await self.invoke_llm(prompt)
-
-        result = self.extract_json(response)
-        if result and isinstance(result, dict) and result.get("question"):
-            logger.info(
-                "Question generated",
-                question_preview=result.get("question", "")[:100],
-                topic=result.get("topic", "unknown"),
-                difficulty=result.get("difficulty", "medium"),
-            )
-            return result
-        logger.warning("Failed to parse question JSON, using raw response")
-        return {"question": response.strip(), "topic": "general", "difficulty": "medium"}
+        return prompt
 
     def _format_resume(self, analysis: Optional[dict]) -> str:
         if not analysis:
@@ -110,20 +153,22 @@ class InterviewerAgent(BaseAgent):
 
     async def generate_reference_answer(self, question: str, context: str = "") -> str:
         """Generate a high-quality reference answer for learning mode."""
-        context_block = f"\n\n## 背景上下文\n{context}" if context else ""
+        context_block = f"\n<context>\n{context}\n</context>" if context else ""
         prompt = f"""你是一位资深技术面试官。请为以下面试问题生成一份高质量的参考答案。
 
-## 面试问题
+<question>
 {question}
+</question>
 {context_block}
 
-## 参考答案要求
+<requirements>
 1. 技术准确，覆盖关键知识点
 2. 结构清晰，有逻辑层次
 3. 长度适中，2-4 段即可
 4. 如果涉及代码，给出简洁示例
+</requirements>
 
 请直接输出参考答案，不需要 JSON 格式。"""
 
-        response = await self.invoke_llm(prompt)
-        return response.strip()
+        response = await self.small_llm.ainvoke(prompt)
+        return response.content.strip() if hasattr(response, 'content') else str(response).strip()
