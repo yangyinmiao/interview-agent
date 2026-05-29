@@ -117,8 +117,11 @@ class InterviewerAgent(BaseAgent):
 
         if question_history:
             history_lines = []
-            for i, h in enumerate(question_history[-5:]):
-                history_lines.append(f"<round num=\"{i+1}\">\n<question>{h['q']}</question>\n<answer>{h['a']}</answer>\n</round>")
+            total_history = len(question_history)
+            recent = question_history[-5:]
+            offset = total_history - len(recent)  # rounds before the recent slice
+            for i, h in enumerate(recent):
+                history_lines.append(f"<round num=\"{offset + i + 1}\">\n<question>{h['q']}</question>\n<answer>{h['a']}</answer>\n</round>")
             history_text = "\n".join(history_lines)
             prompt += f"\n\n<history>\n{history_text}\n</history>"
 

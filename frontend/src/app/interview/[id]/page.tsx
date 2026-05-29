@@ -129,7 +129,6 @@ export default function InterviewPage({
 
     try {
       const result = await api.respondToQuestion(id, currentAnswer);
-      setLoading(false);
       setRoundCount(result.round_count);
 
       if (result.status === "completed") {

@@ -91,9 +91,16 @@ function StartInterviewCard() {
       api.getJDs().catch(() => []),
       api.getQuestionBanks().catch(() => []),
     ]).then(([r, j, q]) => {
-      setResumes(r || []);
-      setJDs(j || []);
-      setQBanks(q || []);
+      const resumes = r || [];
+      const jds = j || [];
+      const qbanks = q || [];
+      setResumes(resumes);
+      setJDs(jds);
+      setQBanks(qbanks);
+      // Default to first item
+      if (resumes.length > 0) setSelectedResume(resumes[0].id);
+      if (jds.length > 0) setSelectedJD(jds[0].id);
+      if (qbanks.length > 0) setSelectedQBank(qbanks[0].id);
     });
   }, []);
 
