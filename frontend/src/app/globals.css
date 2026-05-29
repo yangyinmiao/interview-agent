@@ -6,13 +6,135 @@ body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
-/* Chat message styles */
-.message-interviewer {
-  @apply bg-blue-50 border border-blue-200 rounded-lg p-4 mb-3;
+/* WeChat-style chat bubbles */
+
+.chat-row {
+  @apply flex mb-4 px-4;
 }
-.message-candidate {
-  @apply bg-green-50 border border-green-200 rounded-lg p-4 mb-3;
+
+.chat-row-interviewer {
+  @apply justify-start;
 }
-.message-system {
-  @apply bg-gray-50 border border-gray-200 rounded-lg p-4 mb-3 text-center text-gray-600;
+
+.chat-row-candidate {
+  @apply justify-end;
+}
+
+.chat-row-system {
+  @apply justify-center;
+}
+
+/* Avatar */
+.chat-avatar {
+  @apply w-9 h-9 rounded-md flex-shrink-0 flex items-center justify-center text-white text-xs font-bold;
+}
+
+.chat-avatar-interviewer {
+  @apply bg-blue-500;
+}
+
+.chat-avatar-candidate {
+  @apply bg-green-500;
+}
+
+/* Bubble wrapper — constrains max-width */
+.chat-bubble-wrap {
+  @apply max-w-[75%] flex flex-col;
+}
+
+.chat-bubble-wrap-interviewer {
+  @apply ml-2;
+}
+
+.chat-bubble-wrap-candidate {
+  @apply mr-2 items-end;
+}
+
+/* Bubble body */
+.chat-bubble {
+  @apply relative px-3 py-2 rounded-lg text-sm leading-relaxed break-words;
+}
+
+.chat-bubble-interviewer {
+  @apply bg-white border border-gray-200 text-gray-800;
+}
+
+.chat-bubble-candidate {
+  @apply bg-[#95EC69] text-gray-900;
+}
+
+.chat-bubble-system {
+  @apply bg-gray-100 text-gray-500 text-xs text-center px-3 py-1 rounded-full max-w-[80%];
+}
+
+/* Bubble arrow/tail */
+.chat-bubble-interviewer::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  top: 12px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-right: 6px solid #e5e7eb; /* gray-200 border */
+}
+
+.chat-bubble-interviewer::after {
+  content: "";
+  position: absolute;
+  left: -5px;
+  top: 13px;
+  width: 0;
+  height: 0;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-right: 5px solid white;
+}
+
+.chat-bubble-candidate::before {
+  content: "";
+  position: absolute;
+  right: -6px;
+  top: 12px;
+  width: 0;
+  height: 0;
+  border-top: 6px solid transparent;
+  border-bottom: 6px solid transparent;
+  border-left: 6px solid #95EC69;
+}
+
+/* Sender label */
+.chat-label {
+  @apply text-xs text-gray-400 mb-1;
+}
+
+.chat-label-interviewer {
+  @apply ml-1;
+}
+
+.chat-label-candidate {
+  @apply mr-1;
+}
+
+/* Reference answer inside bubble */
+.chat-reference-btn {
+  @apply text-xs text-gray-400 hover:text-blue-600 transition-colors flex items-center gap-1 mt-1;
+}
+
+.chat-reference-panel {
+  @apply mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg;
+}
+
+/* Message content — reset prose margins inside bubbles */
+.chat-bubble .prose {
+  @apply text-sm;
+}
+
+.chat-bubble .prose p {
+  @apply my-0;
+}
+
+.chat-bubble .prose p + p {
+  @apply mt-2;
 }

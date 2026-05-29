@@ -7,6 +7,14 @@ import { isAuthenticated } from "@/lib/auth";
 import ChatPanel from "@/components/ChatPanel";
 import ReportView from "@/components/ReportView";
 
+interface Message {
+  id: string;
+  role: string;
+  content: string;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+}
+
 export default function InterviewPage({
   params,
 }: {
@@ -14,7 +22,7 @@ export default function InterviewPage({
 }) {
   const { id } = params;
   const router = useRouter();
-  const [messages, setMessages] = useState<any[]>([]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [status, setStatus] = useState<string>("active");
   const [answer, setAnswer] = useState("");
   const [loading, setLoading] = useState(false);
@@ -26,7 +34,7 @@ export default function InterviewPage({
   const loadMessages = async () => {
     try {
       const msgs = await api.getInterviewMessages(id);
-      setMessages(msgs || []);
+      setMessages((msgs || []) as Message[]);
       if (msgs && msgs.length > 0) {
         setHasStarted(true);
       }
@@ -97,8 +105,18 @@ export default function InterviewPage({
     const currentAnswer = answer;
     setAnswer("");
 
+    // Optimistic update: show candidate message immediately
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId,
+      role: "candidate",
+      content: currentAnswer,
+    };
+    setMessages((prev) => [...prev, optimisticMsg]);
+
     try {
       const result = await api.respondToQuestion(id, currentAnswer);
+      // Reload from backend — replaces temp message with real data
       await loadMessages();
 
       if (result.status === "completed") {
@@ -106,6 +124,8 @@ export default function InterviewPage({
         loadReport();
       }
     } catch (err) {
+      // Remove optimistic message on failure
+      setMessages((prev) => prev.filter((m) => m.id !== tempId));
       alert("Failed to submit answer");
     } finally {
       setLoading(false);
