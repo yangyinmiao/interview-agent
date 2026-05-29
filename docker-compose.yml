@@ -150,6 +150,8 @@ services:
       LANGFUSE_INIT_USER_EMAIL: admin@local.dev
       LANGFUSE_INIT_USER_NAME: admin
       LANGFUSE_INIT_USER_PASSWORD: admin123
+      LANGFUSE_INIT_PROJECT_PUBLIC_KEY: pk-lf-def29424-c99a-4133-9089-07cef4ffd293
+      LANGFUSE_INIT_PROJECT_SECRET_KEY: sk-lf-9f84b66a-23b3-4454-80f3-e9f00ff26bdc
     depends_on:
       - langfuse-postgres
 

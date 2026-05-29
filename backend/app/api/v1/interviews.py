@@ -113,7 +113,7 @@ async def start_interview(
 
     result_state = await graph.ainvoke(
         initial_state,
-        config={"callbacks": [get_langfuse_handler()], "metadata": {"langfuse_session_id": interview_id}},
+        config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
     )
 
     # Save the first question as a message
@@ -210,7 +210,7 @@ async def respond_to_question(
 
     result_state = await graph.ainvoke(
         state,
-        config={"callbacks": [get_langfuse_handler()], "metadata": {"langfuse_session_id": interview_id}},
+        config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
     )
 
     next_action = result_state.get("next_action", "end")
@@ -236,15 +236,17 @@ async def respond_to_question(
         db.add(report)
         await db.flush()
 
+        # Save interviewer closing message
+        closing = result_state.get("current_question", "感谢您参加本次面试，祝您一切顺利！")
         closing_msg = InterviewMessage(
             interview_id=interview.id,
-            role="system",
-            content="面试已结束，请查看评估报告。",
+            role="interviewer",
+            content=closing,
         )
         db.add(closing_msg)
 
         return QuestionResponse(
-            question="面试结束",
+            question=closing,
             round_count=round_count,
             max_rounds=10,
             status="completed",
@@ -407,7 +409,7 @@ async def end_interview(
 
     result_state = await graph.ainvoke(
         state,
-        config={"callbacks": [get_langfuse_handler()], "metadata": {"langfuse_session_id": interview_id}},
+        config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
     )
 
     # Save report
@@ -424,10 +426,12 @@ async def end_interview(
     )
     db.add(report)
 
+    # Save interviewer closing message
+    closing = result_state.get("current_question", "感谢您参加本次面试，祝您一切顺利！")
     closing_msg = InterviewMessage(
         interview_id=interview.id,
-        role="system",
-        content="面试已结束，请查看评估报告。",
+        role="interviewer",
+        content=closing,
     )
     db.add(closing_msg)
 

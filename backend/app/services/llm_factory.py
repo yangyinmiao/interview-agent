@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from langchain_core.language_models import BaseChatModel
 from langchain_core.embeddings import Embeddings
 from langchain_openai import ChatOpenAI
@@ -8,16 +8,15 @@ from app.core.config import get_settings
 
 settings = get_settings()
 
-_langfuse_handler: CallbackHandler | None = None
-
 
 def get_llm() -> BaseChatModel:
+    """Return an LLM instance without baked-in callbacks.
+    Tracing is handled at the graph invocation level via per-request handlers."""
     return ChatOpenAI(
         model=settings.llm_model_id,
         temperature=settings.llm_temperature,
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
-        callbacks=[get_langfuse_handler()],
     )
 
 
@@ -55,22 +54,25 @@ def get_embeddings() -> Embeddings:
 
 
 def get_llm_small() -> BaseChatModel:
+    """Return a lightweight LLM instance without baked-in callbacks."""
     return ChatOpenAI(
         model=settings.llm_small_model_id,
         temperature=0.3,
         base_url=settings.llm_base_url,
         api_key=settings.llm_api_key,
-        callbacks=[get_langfuse_handler()],
     )
 
 
-def get_langfuse_handler() -> CallbackHandler:
-    global _langfuse_handler
-    if _langfuse_handler is None:
-        s = get_settings()
-        _langfuse_handler = CallbackHandler(
-            secret_key=s.langfuse_secret_key,
-            public_key=s.langfuse_public_key,
-            host=s.langfuse_host,
-        )
-    return _langfuse_handler
+def get_langfuse_handler(session_id: Optional[str] = None) -> CallbackHandler:
+    """Create a Langfuse CallbackHandler.
+
+    Pass session_id (e.g. interview_id) so all LLM calls in the same
+    interview are grouped together in Langfuse.
+    """
+    s = get_settings()
+    return CallbackHandler(
+        secret_key=s.langfuse_secret_key,
+        public_key=s.langfuse_public_key,
+        host=s.langfuse_host,
+        session_id=session_id,
+    )

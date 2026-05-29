@@ -167,10 +167,31 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
         )
 
         state["final_report"] = report
+
+        # Build a closing message from the interviewer based on overall score
+        overall_score = report.get("overall_score")
+        if overall_score is not None and overall_score >= 8:
+            closing = (
+                f"非常感谢您参加本次面试！您在本次面试中表现出色，综合得分为 {overall_score} 分。"
+                "我们会在近期与您联系，期待未来有机会合作。祝您一切顺利！"
+            )
+        elif overall_score is not None and overall_score >= 6:
+            closing = (
+                f"感谢您参加本次面试！您的综合得分为 {overall_score} 分，整体表现不错。"
+                "我们会认真评估后与您联系，感谢您抽出时间，祝您求职顺利！"
+            )
+        else:
+            closing = (
+                "感谢您参加本次面试！我们已完成所有环节的评估，"
+                "后续会与您保持联系，感谢您的时间，祝您一切顺利！"
+            )
+        state["current_question"] = closing
+        state["next_action"] = "end"
+
         logger.info(
             "Interview completed",
             total_rounds=total_rounds,
-            overall_score=report.get("overall_score"),
+            overall_score=overall_score,
             duration_ms=round((time.time() - start) * 1000, 2),
         )
         return state

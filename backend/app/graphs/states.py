@@ -1,4 +1,4 @@
-from typing import TypedDict, Optional, Annotated, Sequence
+from typing import TypedDict, Optional,Annotated, Sequence
 from langgraph.graph.message import add_messages
 from langchain_core.messages import BaseMessage
 
@@ -21,12 +21,12 @@ class InterviewState(TypedDict):
     # === Interview state ===
     current_question: Optional[str]
     current_answer: Optional[str]
-    question_history: Annotated[list[dict], lambda x, y: (x or []) + (y or [])]
+    question_history: list[dict]
     follow_up_depth: int
     round_count: int
 
     # === Evaluation ===
-    answer_evaluations: Annotated[list[dict], lambda x, y: (x or []) + (y or [])]
+    answer_evaluations: list[dict]
     final_report: Optional[dict]
 
     # === Messages (for LangGraph message state) ===
