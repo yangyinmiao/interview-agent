@@ -3,9 +3,17 @@ from typing import Optional
 from pydantic import BaseModel
 
 
+class JDCreate(BaseModel):
+    title: str
+    company: Optional[str] = None
+    description: str  # the raw job description text
+
+
 class JDResponse(BaseModel):
     id: str
     filename: str
+    title: Optional[str] = None
+    company: Optional[str] = None
     parse_status: str
     structured: Optional[dict] = None
     created_at: Optional[datetime] = None

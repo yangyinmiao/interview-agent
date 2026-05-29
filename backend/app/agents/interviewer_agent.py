@@ -55,12 +55,18 @@ class InterviewerAgent(BaseAgent):
             last_evaluation=json.dumps(last_evaluation, ensure_ascii=False) if last_evaluation else "无",
         )
 
+        # For the very first question, instruct the LLM to open with a brief greeting
+        if round_count == 0 and not question_history:
+            prompt = '【面试开场】这是面试的第一个问题。请先用一句简短友好的开场白（如"你好，欢迎参加本次面试，我们先从...开始"），然后直接提出第一个问题。\n\n' + prompt
+
         if question_history:
             history_text = "\n---\n".join(
                 f"第{i+1}轮 - 面试官: {h['q']}\n候选人: {h['a']}"
                 for i, h in enumerate(question_history[-5:])
             )
-            prompt += f"\n\n## 最近对话历史\n{history_text}\n\n请根据以上对话历史，提出下一个问题。请以JSON格式返回:\n{{\"question\": \"你的问题\", \"topic\": \"话题类别\", \"difficulty\": \"easy/medium/hard\"}}"
+            prompt += f"\n\n## 最近对话历史\n{history_text}\n\n请根据以上对话历史，提出下一个问题。"
+
+        prompt += "\n\n请以JSON格式返回:\n{\"question\": \"你的问题\", \"topic\": \"话题类别\", \"difficulty\": \"easy/medium/hard\"}"
 
         response = await self.invoke_llm(prompt)
 

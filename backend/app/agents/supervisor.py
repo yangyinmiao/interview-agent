@@ -14,22 +14,28 @@ class SupervisorAgent(BaseAgent):
         follow_up_depth = state.get("follow_up_depth", 0)
         answer_evaluations = state.get("answer_evaluations", [])
 
-        # Check if we should end
+        # Always end at max rounds
         if round_count >= max_rounds:
             return "end"
 
         last_eval = answer_evaluations[-1] if answer_evaluations else None
 
-        # Follow-up mode: continue probing if score is low
-        if interview_mode == "follow_up" and follow_up_depth < 3:
-            if last_eval:
-                score = last_eval.get("score", 5)
-                if score < 7:
-                    return "ask"
-
-        # Stress mode: keep challenging
-        if interview_mode == "stress":
+        if interview_mode == "follow_up":
+            # Continue follow-up chain if evaluator says so AND depth < 3
+            if last_eval and last_eval.get("should_follow_up") and follow_up_depth < 3:
+                return "ask"
+            # Otherwise move to next topic (still ask)
             return "ask"
 
-        # Default: continue with new topic
+        if interview_mode == "stress":
+            # In stress mode, always challenge — but respect max_rounds
+            return "ask"
+
+        if interview_mode == "deep":
+            # Deep mode: follow evaluator's signal for whether to drill deeper
+            if last_eval and last_eval.get("should_follow_up") and follow_up_depth < 2:
+                return "ask"
+            return "ask"
+
+        # basic and default
         return "ask"

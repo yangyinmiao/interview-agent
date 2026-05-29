@@ -104,6 +104,15 @@ def build_interview_graph(db: AsyncSession) -> CompiledStateGraph:
 
         state["current_question"] = result.get("question", "")
         state["round_count"] = round_count + 1
+
+        # Track follow-up depth
+        interview_mode = state.get("interview_mode", "basic")
+        last_eval = state.get("answer_evaluations", [])[-1] if state.get("answer_evaluations") else None
+        if interview_mode == "follow_up" and last_eval and last_eval.get("should_follow_up"):
+            state["follow_up_depth"] = state.get("follow_up_depth", 0) + 1
+        else:
+            state["follow_up_depth"] = 0
+
         state["next_action"] = "wait"
 
         logger.info(

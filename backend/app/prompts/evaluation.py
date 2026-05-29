@@ -14,16 +14,19 @@ ANSWER_EVALUATION_PROMPT = """你是一位专业的面试评估官。请评估�
 - 表达清晰度: 表达是否逻辑清晰、条理分明
 - 实用经验: 是否结合了实际项目经验
 
+注意: should_follow_up为true表示候选人回答不完整或有深挖价值；如果候选人表示不知道则should_follow_up必须为false。
+
 请以JSON格式返回评估结果:
 {{
-    "score": 0-10,
+    "score": 0-10的整数,
     "technical_accuracy": 0-10,
     "depth_breadth": 0-10,
     "clarity": 0-10,
     "practical_experience": 0-10,
     "brief_feedback": "一句话评价",
-    "should_follow_up": true/false,
-    "follow_up_reason": "如果需要追问，说明原因"
+    "topic": "本题考察的话题类别，如：系统设计/数据结构/项目经验/算法/网络/数据库等",
+    "should_follow_up": true或false,
+    "follow_up_reason": "如果should_follow_up为true，说明追问方向"
 }}
 """
 

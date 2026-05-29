@@ -1,7 +1,7 @@
 from typing import List
 from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.database import get_db
 from app.core.tenant import get_current_tenant
@@ -159,4 +159,11 @@ async def delete_resume(
     resume = result.scalar_one_or_none()
     if not resume:
         raise HTTPException(status_code=404, detail="Resume not found")
+    # Nullify FK references in interviews before deleting
+    from app.models.interview import Interview
+    await db.execute(
+        update(Interview)
+        .where(Interview.resume_id == resume.id)
+        .values(resume_id=None)
+    )
     await db.delete(resume)

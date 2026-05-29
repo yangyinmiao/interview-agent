@@ -6,9 +6,7 @@ import { useEffect } from "react";
 
 const TABS = [
   { label: "面试中心", path: "/dashboard" },
-  { label: "简历管理", path: "/dashboard/resumes" },
-  { label: "岗位管理", path: "/dashboard/jds" },
-  { label: "题库管理", path: "/dashboard/question-banks" },
+  { label: "资料管理", path: "/dashboard/materials" },
 ];
 
 export default function DashboardLayout({

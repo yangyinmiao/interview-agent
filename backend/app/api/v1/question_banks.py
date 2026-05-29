@@ -1,7 +1,7 @@
 from typing import List, Optional
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, update
 
 from app.core.database import get_db
 from app.core.tenant import get_current_tenant
@@ -154,4 +154,11 @@ async def delete_question_bank(
     qb = result.scalar_one_or_none()
     if not qb:
         raise HTTPException(status_code=404, detail="Question bank not found")
+    # Nullify FK references in interviews before deleting
+    from app.models.interview import Interview
+    await db.execute(
+        update(Interview)
+        .where(Interview.question_bank_id == qb.id)
+        .values(question_bank_id=None)
+    )
     await db.delete(qb)

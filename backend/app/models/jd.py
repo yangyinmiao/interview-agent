@@ -8,6 +8,8 @@ class JD(Base, TenantMixin, TimestampMixin):
     __tablename__ = "jds"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String(200), nullable=True)
+    company = Column(String(200), nullable=True)
     filename = Column(String(500), nullable=False)
     file_url = Column(String(1000), nullable=False)
     raw_text = Column(Text, nullable=True)

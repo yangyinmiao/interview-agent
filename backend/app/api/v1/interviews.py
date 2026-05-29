@@ -52,6 +52,54 @@ async def create_interview(
     )
 
 
+@router.get("", response_model=List[InterviewResponse])
+async def list_interviews(
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Interview).where(Interview.tenant_id == tenant.id).order_by(Interview.created_at.desc())
+    )
+    interviews = result.scalars().all()
+    return [
+        InterviewResponse(
+            id=str(i.id),
+            mode=i.mode,
+            status=i.status,
+            resume_id=str(i.resume_id) if i.resume_id else None,
+            jd_id=str(i.jd_id) if i.jd_id else None,
+            question_bank_id=str(i.question_bank_id) if i.question_bank_id else None,
+            started_at=i.started_at,
+            completed_at=i.completed_at,
+        )
+        for i in interviews
+    ]
+
+
+@router.get("/{interview_id}", response_model=InterviewResponse)
+async def get_interview(
+    interview_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(
+        select(Interview).where(Interview.id == interview_id, Interview.tenant_id == tenant.id)
+    )
+    interview = result.scalar_one_or_none()
+    if not interview:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    return InterviewResponse(
+        id=str(interview.id),
+        mode=interview.mode,
+        status=interview.status,
+        resume_id=str(interview.resume_id) if interview.resume_id else None,
+        jd_id=str(interview.jd_id) if interview.jd_id else None,
+        question_bank_id=str(interview.question_bank_id) if interview.question_bank_id else None,
+        started_at=interview.started_at,
+        completed_at=interview.completed_at,
+    )
+
+
 @router.post("/{interview_id}/start", response_model=QuestionResponse)
 async def start_interview(
     interview_id: str,
@@ -553,26 +601,3 @@ async def delete_interview(
 
     return {"deleted": interview_id}
 
-
-@router.get("", response_model=List[InterviewResponse])
-async def list_interviews(
-    tenant: Tenant = Depends(get_current_tenant),
-    db: AsyncSession = Depends(get_db),
-):
-    result = await db.execute(
-        select(Interview).where(Interview.tenant_id == tenant.id).order_by(Interview.created_at.desc())
-    )
-    interviews = result.scalars().all()
-    return [
-        InterviewResponse(
-            id=str(i.id),
-            mode=i.mode,
-            status=i.status,
-            resume_id=str(i.resume_id) if i.resume_id else None,
-            jd_id=str(i.jd_id) if i.jd_id else None,
-            question_bank_id=str(i.question_bank_id) if i.question_bank_id else None,
-            started_at=i.started_at,
-            completed_at=i.completed_at,
-        )
-        for i in interviews
-    ]

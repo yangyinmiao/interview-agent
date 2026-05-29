@@ -48,6 +48,15 @@ class ApiClient {
       return null;
     }
 
+    if (!res.ok) {
+      let detail = `HTTP ${res.status}`;
+      try {
+        const err = await res.json();
+        detail = err.detail || JSON.stringify(err);
+      } catch {}
+      throw new Error(detail);
+    }
+
     return res.json();
   }
 
@@ -91,12 +100,21 @@ class ApiClient {
   }
 
   // JDs
-  async uploadJD(file: File) {
+  async uploadJD(file: File, title?: string, company?: string) {
     const formData = new FormData();
     formData.append("file", file);
+    if (title) formData.append("title", title);
+    if (company) formData.append("company", company);
     return this.request("/jds/upload", {
       method: "POST",
       body: formData,
+    });
+  }
+
+  async createJD(data: { title: string; company?: string; description: string }) {
+    return this.request("/jds", {
+      method: "POST",
+      body: JSON.stringify(data),
     });
   }
 
