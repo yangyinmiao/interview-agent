@@ -3,7 +3,7 @@
 > 上传简历 + JD，让 AI 面试官针对你的经历出题、追问、评分，帮你在真实面试前找到自己的短板。
 
 ![技术栈](https://img.shields.io/badge/Backend-FastAPI%20%2B%20LangGraph-blue)
-![前端](https://img.shields.io/badge/Frontend-Next.js%2014-black)
+<img src="https://img.shields.io/badge/Frontend-Next.js%2014-black" alt="Frontend" />
 ![License](https://img.shields.io/badge/License-MIT-green)
 
 ---
