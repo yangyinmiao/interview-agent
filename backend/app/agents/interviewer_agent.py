@@ -70,8 +70,8 @@ class InterviewerAgent(BaseAgent):
 
         response = await self.invoke_llm(prompt)
 
-        try:
-            result = json.loads(response)
+        result = self.extract_json(response)
+        if result and isinstance(result, dict) and result.get("question"):
             logger.info(
                 "Question generated",
                 question_preview=result.get("question", "")[:100],
@@ -79,9 +79,8 @@ class InterviewerAgent(BaseAgent):
                 difficulty=result.get("difficulty", "medium"),
             )
             return result
-        except json.JSONDecodeError:
-            logger.warning("Failed to parse question JSON, using raw response")
-            return {"question": response.strip(), "topic": "general", "difficulty": "medium"}
+        logger.warning("Failed to parse question JSON, using raw response")
+        return {"question": response.strip(), "topic": "general", "difficulty": "medium"}
 
     def _format_resume(self, analysis: Optional[dict]) -> str:
         if not analysis:

@@ -164,6 +164,14 @@ async def start_interview(
         config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
     )
 
+    # Persist context so subsequent requests don't need to re-analyse
+    interview.context_cache = {
+        "resume_analysis": result_state.get("resume_analysis"),
+        "jd_analysis": result_state.get("jd_analysis"),
+        "retrieved_questions": result_state.get("retrieved_questions", []),
+    }
+    interview.follow_up_depth = 0
+
     # Save the first question as a message
     question = result_state.get("current_question", "欢迎参加面试，请先简单介绍一下自己。")
     if not question:
@@ -221,11 +229,17 @@ async def respond_to_question(
 
     question_history = []
     last_question = ""
+    last_question_topic = "general"
     for msg in all_messages:
         if msg.role == "interviewer":
             last_question = msg.content
+            last_question_topic = (msg.meta_data or {}).get("topic", "general")
         elif msg.role == "candidate" and last_question:
-            question_history.append({"q": last_question, "a": msg.content})
+            question_history.append({
+                "q": last_question,
+                "a": msg.content,
+                "topic": last_question_topic,
+            })
             last_question = ""
 
     round_count = len(question_history)
@@ -234,6 +248,8 @@ async def respond_to_question(
 
     graph = build_interview_graph(db)
 
+    # Restore context from DB cache (computed once on start, reused every turn)
+    ctx = interview.context_cache or {}
     state = {
         "tenant_id": str(tenant.id),
         "interview_id": interview_id,
@@ -242,13 +258,13 @@ async def respond_to_question(
         "question_bank_id": str(interview.question_bank_id) if interview.question_bank_id else "",
         "interview_mode": interview.mode or "basic",
         "max_rounds": 10,
-        "resume_analysis": None,
-        "jd_analysis": None,
-        "retrieved_questions": [],
+        "resume_analysis": ctx.get("resume_analysis"),
+        "jd_analysis": ctx.get("jd_analysis"),
+        "retrieved_questions": ctx.get("retrieved_questions", []),
         "current_question": "",
         "current_answer": data.answer,
         "question_history": question_history,
-        "follow_up_depth": 0,
+        "follow_up_depth": interview.follow_up_depth or 0,
         "round_count": round_count,
         "answer_evaluations": [],
         "final_report": None,
@@ -260,6 +276,9 @@ async def respond_to_question(
         state,
         config={"callbacks": [get_langfuse_handler(session_id=interview_id)]},
     )
+
+    # Persist updated follow_up_depth back to DB
+    interview.follow_up_depth = result_state.get("follow_up_depth", 0)
 
     next_action = result_state.get("next_action", "end")
 
@@ -303,10 +322,14 @@ async def respond_to_question(
     # Next question
     next_question = result_state.get("current_question", "")
     if next_question:
+        # Store the topic from evaluation so history rebuild can use it for deduplication
+        last_eval = result_state.get("answer_evaluations", [])
+        topic = last_eval[-1].get("topic", "general") if last_eval else "general"
         question_msg = InterviewMessage(
             interview_id=interview.id,
             role="interviewer",
             content=next_question,
+            meta_data={"topic": topic},
         )
         db.add(question_msg)
 
@@ -422,17 +445,24 @@ async def end_interview(
 
     question_history = []
     last_question = ""
+    last_question_topic = "general"
     for msg in all_messages:
         if msg.role == "interviewer":
             last_question = msg.content
+            last_question_topic = (msg.meta_data or {}).get("topic", "general")
         elif msg.role == "candidate" and last_question:
-            question_history.append({"q": last_question, "a": msg.content})
+            question_history.append({
+                "q": last_question,
+                "a": msg.content,
+                "topic": last_question_topic,
+            })
             last_question = ""
 
     from app.graphs.interview_graph import build_interview_graph
 
     graph = build_interview_graph(db)
 
+    ctx = interview.context_cache or {}
     state = {
         "tenant_id": str(tenant.id),
         "interview_id": interview_id,
@@ -441,13 +471,13 @@ async def end_interview(
         "question_bank_id": str(interview.question_bank_id) if interview.question_bank_id else "",
         "interview_mode": interview.mode or "basic",
         "max_rounds": 10,
-        "resume_analysis": None,
-        "jd_analysis": None,
-        "retrieved_questions": [],
+        "resume_analysis": ctx.get("resume_analysis"),
+        "jd_analysis": ctx.get("jd_analysis"),
+        "retrieved_questions": ctx.get("retrieved_questions", []),
         "current_question": "",
         "current_answer": "",
         "question_history": question_history,
-        "follow_up_depth": 0,
+        "follow_up_depth": interview.follow_up_depth or 0,
         "round_count": len(question_history),
         "answer_evaluations": [],
         "final_report": None,

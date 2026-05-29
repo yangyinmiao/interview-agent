@@ -27,17 +27,16 @@ class EvaluatorAgent(BaseAgent):
         """Evaluate a single interview answer."""
         prompt = ANSWER_EVALUATION_PROMPT.format(question=question, answer=answer)
         response = await self.small_llm.ainvoke(prompt)
-        try:
-            result = json.loads(response.content)
+        result = self.extract_json(response.content)
+        if result and isinstance(result, dict):
             logger.debug(
                 "Answer evaluated",
                 score=result.get("score"),
                 should_follow_up=result.get("should_follow_up"),
             )
             return result
-        except json.JSONDecodeError:
-            logger.warning("Failed to parse evaluation JSON")
-            return {"score": 5, "brief_feedback": "无法解析评估结果", "should_follow_up": False}
+        logger.warning("Failed to parse evaluation JSON")
+        return {"score": 5, "brief_feedback": "无法解析评估结果", "should_follow_up": False, "topic": "general"}
 
     async def evaluate_overall(
         self,
@@ -55,13 +54,12 @@ class EvaluatorAgent(BaseAgent):
             answer_evaluations=answer_evaluations,
         )
         response = await self.llm.ainvoke(prompt)
-        try:
-            result = json.loads(response.content)
+        result = self.extract_json(response.content)
+        if result and isinstance(result, dict):
             logger.info(
                 "Final report generated",
                 overall_score=result.get("overall_score"),
             )
             return result
-        except json.JSONDecodeError:
-            logger.error("Failed to parse final report JSON")
-            return {"overall_score": 0, "summary": "评估生成失败", "raw": response.content}
+        logger.error("Failed to parse final report JSON")
+        return {"overall_score": 0, "summary": "评估生成失败", "raw": response.content}
