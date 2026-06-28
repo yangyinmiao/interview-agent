@@ -188,16 +188,17 @@ class ApiClient {
     });
   }
 
-  async respondToQuestion(interviewId: string, answer: string) {
+  async respondToQuestion(interviewId: string, answer: string, requestId?: string) {
     return this.request(`/interviews/${interviewId}/respond`, {
       method: "POST",
-      body: JSON.stringify({ answer }),
+      body: JSON.stringify({ answer, request_id: requestId }),
     });
   }
 
   /** Stream question via SSE. Returns an async generator of events. */
-  async *respondStream(interviewId: string, answer: string): AsyncGenerator<{
-    type: string; content: string; score?: number; feedback?: string; round_count?: number;
+  async *respondStream(interviewId: string, answer: string, requestId?: string): AsyncGenerator<{
+    type: string; content?: string; score?: number; feedback?: string; round_count?: number;
+    max_rounds?: number; completed?: boolean;
   }> {
     const token = this.getToken();
     const headers: Record<string, string> = {
@@ -208,7 +209,7 @@ class ApiClient {
     const res = await fetch(`${API_BASE}/interviews/${interviewId}/respond-stream`, {
       method: "POST",
       headers,
-      body: JSON.stringify({ answer }),
+      body: JSON.stringify({ answer, request_id: requestId }),
       credentials: "include",
     });
 
@@ -274,6 +275,10 @@ class ApiClient {
 
   async getInterviews() {
     return this.request("/interviews");
+  }
+
+  async getProgressTrend() {
+    return this.request("/interviews/progress");
   }
 }
 

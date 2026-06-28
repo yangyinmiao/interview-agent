@@ -6,7 +6,6 @@ Create Date: 2026-05-28 00:00:00.000000
 """
 from typing import Sequence, Union
 from alembic import op
-import sqlalchemy as sa
 
 revision: str = 'add_jd_title_company'
 down_revision: Union[str, None] = '1da75b400930'
@@ -15,8 +14,11 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column('jds', sa.Column('title', sa.String(200), nullable=True))
-    op.add_column('jds', sa.Column('company', sa.String(200), nullable=True))
+    # Some early development databases received these columns before the
+    # Alembic revision was recorded. Keep the revision safe for both those
+    # databases and clean installations.
+    op.execute("ALTER TABLE jds ADD COLUMN IF NOT EXISTS title VARCHAR(200)")
+    op.execute("ALTER TABLE jds ADD COLUMN IF NOT EXISTS company VARCHAR(200)")
 
 
 def downgrade() -> None:

@@ -12,6 +12,7 @@ class Interview(Base, TenantMixin):
     jd_id = Column(UUID(as_uuid=True), ForeignKey("jds.id"), nullable=True)
     question_bank_id = Column(UUID(as_uuid=True), ForeignKey("question_banks.id"), nullable=True)
     mode = Column(String(50), nullable=False, default="basic")
+    max_rounds = Column(Integer, nullable=False, default=10)
     status = Column(String(20), default="active")
     started_at = Column(DateTime(timezone=True), server_default=func.now())
     completed_at = Column(DateTime(timezone=True), nullable=True)
@@ -20,4 +21,4 @@ class Interview(Base, TenantMixin):
     # Cached context — persisted across HTTP requests so resume/jd analysis
     # is computed once on start and reused every respond turn
     context_cache = Column(JSONB, nullable=True)
-    follow_up_depth = Column(Integer, default=0)
+    follow_up_depth = Column(Integer, nullable=False, default=0)

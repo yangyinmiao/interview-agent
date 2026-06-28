@@ -158,7 +158,13 @@ async def delete_question_bank(
     from app.models.interview import Interview
     await db.execute(
         update(Interview)
-        .where(Interview.question_bank_id == qb.id)
+        .where(Interview.question_bank_id == qb.id, Interview.tenant_id == tenant.id)
         .values(question_bank_id=None)
+    )
+    from app.materials.lifecycle import PreparationMaterialLifecycle
+    await PreparationMaterialLifecycle(db).delete(
+        tenant_id=str(tenant.id),
+        source_type="question_bank",
+        source_id=str(qb.id),
     )
     await db.delete(qb)

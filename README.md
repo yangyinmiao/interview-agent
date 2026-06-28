@@ -75,11 +75,14 @@ cp .env.example .env
 编辑 `.env`，填入以下必填项：
 
 ```env
-# DeepSeek API（必填）
-DEEPSEEK_API_KEY=sk-xxxxxxxxxxxxxxxx
+# OpenAI 兼容接口（DeepSeek 示例）
+LLM_BASE_URL=https://api.deepseek.com/v1
+LLM_MODEL_ID=deepseek-chat
+LLM_SMALL_MODEL_ID=deepseek-chat
+LLM_API_KEY=sk-xxxxxxxxxxxxxxxx
 
 # JWT 密钥，随机字符串即可
-SECRET_KEY=your-random-secret-key-here
+JWT_SECRET=your-random-secret-key-here
 
 # 数据库密码（可保持默认）
 PG_PASSWORD=agent123

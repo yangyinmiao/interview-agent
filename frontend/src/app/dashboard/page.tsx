@@ -83,6 +83,7 @@ function StartInterviewCard() {
   const [selectedJD, setSelectedJD] = useState("");
   const [selectedQBank, setSelectedQBank] = useState("");
   const [mode, setMode] = useState("basic");
+  const [maxRounds, setMaxRounds] = useState(10);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
@@ -112,6 +113,7 @@ function StartInterviewCard() {
         jd_id: selectedJD || undefined,
         question_bank_id: selectedQBank || undefined,
         mode,
+        max_rounds: maxRounds,
       });
       router.push(`/interview/${result.id}`);
     } catch {
@@ -189,6 +191,19 @@ function StartInterviewCard() {
           {mode && (
             <p className="text-xs text-gray-400 mt-1">{MODE_DESCRIPTIONS[mode]}</p>
           )}
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-gray-500 uppercase tracking-wide mb-1.5">面试轮数</label>
+          <select
+            value={maxRounds}
+            onChange={(e) => setMaxRounds(Number(e.target.value))}
+            className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm text-gray-700 bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          >
+            {[5, 10, 15, 20].map((rounds) => (
+              <option key={rounds} value={rounds}>{rounds} 轮</option>
+            ))}
+          </select>
         </div>
       </div>
 
@@ -381,6 +396,90 @@ function InterviewsHistory() {
   );
 }
 
+type ProgressTrend = {
+  completed_count: number;
+  overall_change?: number | null;
+  interviews: Array<{
+    interview_id: string;
+    completed_at: string;
+    overall_score?: number | null;
+  }>;
+  topics: Array<{
+    topic: string;
+    attempts: number;
+    average_score: number;
+    latest_score: number;
+    change?: number | null;
+  }>;
+};
+
+function ProgressTrendCard() {
+  const [trend, setTrend] = useState<ProgressTrend | null>(null);
+
+  useEffect(() => {
+    api.getProgressTrend().then(setTrend).catch(() => setTrend(null));
+  }, []);
+
+  if (!trend || trend.completed_count === 0) return null;
+
+  const scored = trend.interviews.filter((item) => item.overall_score != null);
+  const latest = scored[scored.length - 1]?.overall_score;
+  const strongest = [...trend.topics].sort((a, b) => b.average_score - a.average_score)[0];
+
+  return (
+    <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-6">
+      <div className="flex items-start justify-between gap-4 mb-5">
+        <div>
+          <h2 className="text-base font-semibold text-gray-900">能力趋势</h2>
+          <p className="text-sm text-gray-500 mt-0.5">基于已完成面试和逐轮评估</p>
+        </div>
+        <div className="text-right">
+          <div className="text-2xl font-semibold text-blue-600">{latest?.toFixed(1) ?? "—"}</div>
+          <div className={`text-xs ${(trend.overall_change ?? 0) >= 0 ? "text-green-600" : "text-red-500"}`}>
+            {trend.overall_change == null
+              ? "完成第二次面试后显示变化"
+              : `较首次 ${trend.overall_change >= 0 ? "+" : ""}${trend.overall_change.toFixed(1)}`}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">最近得分</p>
+          <div className="space-y-2">
+            {scored.slice(-5).map((point, index) => (
+              <div key={point.interview_id} className="flex items-center gap-3">
+                <span className="text-xs text-gray-400 w-12">第 {Math.max(1, scored.length - 4) + index} 次</span>
+                <div className="flex-1 h-2 rounded-full bg-gray-100 overflow-hidden">
+                  <div className="h-full bg-blue-500 rounded-full" style={{ width: `${(point.overall_score! / 10) * 100}%` }} />
+                </div>
+                <span className="text-xs font-medium text-gray-700 w-7">{point.overall_score?.toFixed(1)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div>
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide mb-2">话题表现</p>
+          {trend.topics.length > 0 ? (
+            <div className="space-y-2">
+              {trend.topics.slice(0, 4).map((topic) => (
+                <div key={topic.topic} className="flex items-center justify-between text-sm">
+                  <span className="text-gray-600 truncate">{topic.topic}</span>
+                  <span className="text-gray-500 ml-3">{topic.average_score.toFixed(1)} · {topic.attempts} 题</span>
+                </div>
+              ))}
+              {strongest && <p className="text-xs text-green-600 pt-1">当前优势：{strongest.topic}</p>}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-400">新的逐轮评估产生后会显示话题趋势</p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function InterviewRow({
   interview: i,
   selected,
@@ -460,6 +559,7 @@ export default function DashboardPage() {
   return (
     <div className="space-y-6">
       <StartInterviewCard />
+      <ProgressTrendCard />
       <InterviewsHistory />
     </div>
   );

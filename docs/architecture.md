@@ -87,16 +87,18 @@
 ```
 创建面试 → 开始面试
   → LangGraph prepare_context
-    → ResumeAgent + JDAgent + QBankAgent (并行)
+    → ResumeAgent + JDAgent + QBankAgent
   → generate_question (InterviewerAgent 生成首问)
   → 返回问题给前端
   → 用户作答
-  → evaluate_answer (EvaluatorAgent 评估)
-  → Supervisor 路由决策
-    ├── 继续追问 → generate_question (循环)
-    ├── 切换话题 → generate_question (循环)
-    └── 轮次达标 → generate_report (结束)
+  → InterviewSession 完成一个 Interview Round
+    → EvaluatorAgent 评估并持久化
+    → Supervisor 路由决策
+    ├── 继续 → InterviewerAgent 生成下一问
+    └── 轮次达标 → 汇总全部评估并生成报告
 ```
+
+普通 JSON 与 SSE 流式响应是同一 InterviewSession Interface 上的两个 Adapter，二者共享轮次计算、幂等检查、评估持久化和报告逻辑。
 
 ## 5. 多租户设计
 

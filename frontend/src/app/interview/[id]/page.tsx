@@ -28,7 +28,7 @@ export default function InterviewPage({
   const [loading, setLoading] = useState(false);
   const [report, setReport] = useState<any>(null);
   const [roundCount, setRoundCount] = useState(0);
-  const MAX_ROUNDS = 10;
+  const [maxRounds, setMaxRounds] = useState(10);
   const [hasStarted, setHasStarted] = useState(false);
   const [initializing, setInitializing] = useState(true);
   const [startError, setStartError] = useState(false);
@@ -39,13 +39,8 @@ export default function InterviewPage({
       setMessages((msgs || []) as Message[]);
       if (msgs && msgs.length > 0) {
         setHasStarted(true);
-        // Calculate round count: interviewer messages before the closing system message
-        const closingIdx = msgs.findIndex(
-          (m: Message) => m.role === "system" && m.content?.includes("面试已结束")
-        );
-        const relevantMsgs = closingIdx >= 0 ? msgs.slice(0, closingIdx) : msgs;
-        const qCount = relevantMsgs.filter((m: Message) => m.role === "interviewer").length;
-        if (qCount > 0) setRoundCount(qCount);
+        const completedRounds = msgs.filter((m: Message) => m.role === "candidate").length;
+        setRoundCount(completedRounds);
       }
       const hasClosingMsg = msgs?.some(
         (m: Message) => m.role === "system" && m.content?.includes("面试已结束")
@@ -84,6 +79,7 @@ export default function InterviewPage({
       const result = await api.startInterview(id);
       setHasStarted(true);
       setRoundCount(result.round_count || 1);
+      setMaxRounds(result.max_rounds || 10);
       if (result.status === "completed") {
         setStatus("completed");
         loadReport();
@@ -128,19 +124,21 @@ export default function InterviewPage({
 
     let isCompleted = false;
     try {
-      for await (const evt of api.respondStream(id, currentAnswer)) {
+      const requestId = crypto.randomUUID();
+      for await (const evt of api.respondStream(id, currentAnswer, requestId)) {
         if (evt.type === "ping") {
           // heartbeat, ignore
         } else if (evt.type === "token") {
           setLoading(false);
           setMessages((prev) =>
-            prev.map((m) => (m.id === streamId ? { ...m, content: m.content + evt.content } : m))
+            prev.map((m) => (m.id === streamId ? { ...m, content: m.content + (evt.content || "") } : m))
           );
         } else if (evt.type === "error") {
           throw new Error(evt.content || "Stream error");
         } else if (evt.type === "done") {
           setLoading(false);
           setRoundCount(evt.round_count || roundCount + 1);
+          if (evt.max_rounds) setMaxRounds(evt.max_rounds);
           if (evt.completed) {
             isCompleted = true;
             setStatus("completed");
@@ -152,7 +150,8 @@ export default function InterviewPage({
       if (isCompleted) loadReport();
     } catch (err) {
       setMessages((prev) => prev.filter((m) => m.id !== tempId && m.id !== streamId));
-      alert("Failed to submit answer");
+      await loadMessages();
+      alert("回答提交异常，已重新同步面试状态");
     } finally {
       setLoading(false);
     }
@@ -199,11 +198,11 @@ export default function InterviewPage({
             <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
               <div
                 className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min((roundCount / MAX_ROUNDS) * 100, 100)}%` }}
+                style={{ width: `${Math.min((roundCount / maxRounds) * 100, 100)}%` }}
               />
             </div>
             <span className="text-xs text-gray-400 whitespace-nowrap">
-              {roundCount} / {MAX_ROUNDS} 轮
+              {roundCount} / {maxRounds} 轮
             </span>
           </div>
         )}

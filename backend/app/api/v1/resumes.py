@@ -163,7 +163,14 @@ async def delete_resume(
     from app.models.interview import Interview
     await db.execute(
         update(Interview)
-        .where(Interview.resume_id == resume.id)
+        .where(Interview.resume_id == resume.id, Interview.tenant_id == tenant.id)
         .values(resume_id=None)
+    )
+    from app.materials.lifecycle import PreparationMaterialLifecycle
+    await PreparationMaterialLifecycle(db).delete(
+        tenant_id=str(tenant.id),
+        source_type="resume",
+        source_id=str(resume.id),
+        object_name=resume.file_url,
     )
     await db.delete(resume)

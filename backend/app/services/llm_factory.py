@@ -1,8 +1,12 @@
 from typing import List, Optional
 from langchain_core.language_models import BaseChatModel
 from langchain_core.embeddings import Embeddings
+from langchain_core.callbacks import BaseCallbackHandler
 from langchain_openai import ChatOpenAI
-from langfuse.callback import CallbackHandler
+try:
+    from langfuse.callback import CallbackHandler as LangfuseCallbackHandler
+except ImportError:  # Langfuse is an optional adapter.
+    LangfuseCallbackHandler = None
 from openai import OpenAI
 from app.core.config import get_settings
 
@@ -63,14 +67,20 @@ def get_llm_small() -> BaseChatModel:
     )
 
 
-def get_langfuse_handler(session_id: Optional[str] = None) -> CallbackHandler:
+def get_langfuse_handler(session_id: Optional[str] = None) -> BaseCallbackHandler:
     """Create a Langfuse CallbackHandler.
 
     Pass session_id (e.g. interview_id) so all LLM calls in the same
     interview are grouped together in Langfuse.
     """
     s = get_settings()
-    return CallbackHandler(
+    if (
+        LangfuseCallbackHandler is None
+        or not s.langfuse_secret_key
+        or not s.langfuse_public_key
+    ):
+        return BaseCallbackHandler()
+    return LangfuseCallbackHandler(
         secret_key=s.langfuse_secret_key,
         public_key=s.langfuse_public_key,
         host=s.langfuse_host,

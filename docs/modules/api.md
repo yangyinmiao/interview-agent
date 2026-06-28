@@ -156,6 +156,10 @@
 
 当 `status` 为 `"completed"` 时，面试结束，可获取报告。
 
+`max_rounds` 会持久化到面试记录，允许 3–30 轮。回答请求可携带 `request_id`，同一次请求重复提交会返回 409，避免生成重复 Interview Round。
+
+`GET /interviews/progress` 返回跨多次已完成面试的总分变化、维度变化和话题表现。
+
 **面试对话流程**:
 ```
 POST /interviews          → 创建会话

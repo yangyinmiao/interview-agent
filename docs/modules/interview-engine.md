@@ -4,6 +4,8 @@
 
 面试引擎是系统的核心模块，基于 LangGraph StateGraph 实现，驱动完整的面试流程。
 
+当前实现中，LangGraph 负责首次资料准备和首问生成；之后每个 Interview Round 由 `app/interview/session.py` 统一完成。这样 JSON 与 SSE Adapter 不再各自维护一套轮次、评估和报告状态。
+
 ## 2. LangGraph 面试流程
 
 ### 2.1 状态机图
@@ -197,14 +199,14 @@ class InterviewState(TypedDict):
 
 ## 7. 与 API 的集成
 
-API 层 (`api/v1/interviews.py`) 负责:
+路由层 (`api/v1/interviews.py`) 负责:
 1. 创建 Interview 记录 (PG)
-2. 调用 `graph.ainvoke(initial_state)` 驱动面试流程
+2. 首次启动时调用 `graph.ainvoke(initial_state)` 准备资料并生成首问
 3. 每次 `generate_question` 后将问题存为 InterviewMessage
-4. 每次 `respond` 后将答案存为 InterviewMessage，然后触发下一轮 graph
+4. 每次 `respond` 通过 InterviewSession 完成评分、持久化、路由和下一问生成
 5. 面试结束时将 report 存入 InterviewReport
 
 关键交互模式：
 - `/start` → `graph.ainvoke()` with `next_action='prepare'`
-- `/respond` → `graph.ainvoke()` with `next_action='evaluate'` + user answer
-- Graph 在每个需要用户输入的节点后返回，API 将问题返回前端，等待下一次 respond
+- `/respond` 与 `/respond-stream` → 同一个 InterviewSession Interface
+- 每个候选人消息保存本轮完整 Answer Evaluation，报告从全部持久化评估生成

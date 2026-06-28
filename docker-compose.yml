@@ -60,6 +60,7 @@ services:
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       DATABASE_URL: postgresql+asyncpg://agent:${PG_PASSWORD:-agent123}@postgres:5432/interview_agent
+      PYTHONPATH: /app
       QDRANT_URL: http://qdrant:6333
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
@@ -83,6 +84,7 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -98,6 +100,7 @@ services:
     command: celery -A app.tasks.celery_app worker -l info -c 2
     environment:
       DATABASE_URL: postgresql+asyncpg://agent:${PG_PASSWORD:-agent123}@postgres:5432/interview_agent
+      PYTHONPATH: /app
       QDRANT_URL: http://qdrant:6333
       REDIS_URL: redis://redis:6379/0
       MINIO_ENDPOINT: minio:9000
@@ -111,6 +114,7 @@ services:
     volumes:
       - ./backend/app:/app/app
       - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini:ro
     depends_on:
       postgres:
         condition: service_healthy

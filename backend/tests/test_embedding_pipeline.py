@@ -6,7 +6,9 @@ from app.services.embedding_pipeline import EmbeddingPipeline
 class TestEmbeddingPipeline:
     @pytest.fixture
     def mock_db(self):
-        return AsyncMock()
+        db = AsyncMock()
+        db.add = MagicMock()
+        return db
 
     @pytest.fixture
     def pipeline(self, mock_db):

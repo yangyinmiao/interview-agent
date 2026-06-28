@@ -200,7 +200,14 @@ async def delete_jd(
     from app.models.interview import Interview
     await db.execute(
         update(Interview)
-        .where(Interview.jd_id == jd.id)
+        .where(Interview.jd_id == jd.id, Interview.tenant_id == tenant.id)
         .values(jd_id=None)
+    )
+    from app.materials.lifecycle import PreparationMaterialLifecycle
+    await PreparationMaterialLifecycle(db).delete(
+        tenant_id=str(tenant.id),
+        source_type="jd",
+        source_id=str(jd.id),
+        object_name=jd.file_url or None,
     )
     await db.delete(jd)
