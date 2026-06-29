@@ -1,44 +1,44 @@
-# Interview Practice
+# 模拟面试练习
 
-This context describes the language of an AI-guided practice interview, from preparation material through a completed assessment and progress over time.
+本文档定义 AI 引导的模拟面试练习所使用的领域语言，覆盖从准备材料、完成评估到长期进步趋势的完整过程。
 
-## Language
+## 领域语言
 
-**Practice Interview**:
-A bounded interview attempt configured with a mode, preparation material, and a target number of rounds. One Practice Interview contains zero or more Interview Rounds and at most one Interview Report.
-_Avoid_: Session, conversation, mock
+**模拟面试（Practice Interview）**：
+一次边界明确的面试练习，由面试模式、准备材料和目标轮数共同配置。一次模拟面试包含零个或多个面试轮次，并且最多包含一份面试报告。
+_避免使用_：会话、对话、模拟
 
-**Interview Round**:
-One interviewer question, one candidate answer, and the resulting Answer Evaluation. A round is complete only after the answer has been evaluated.
-_Avoid_: Turn, message pair
+**面试轮次（Interview Round）**：
+由面试官提出的一个问题、候选人的一次回答，以及随后产生的回答评估共同组成。只有当回答完成评估后，该轮次才算完成。
+_避免使用_：回合、消息对
 
-**Preparation Material**:
-A Resume, Job Description, or Question Bank selected to ground a Practice Interview.
-_Avoid_: Context file, attachment
+**准备材料（Preparation Material）**：
+为模拟面试提供依据而选择的简历、职位描述或题库。
+_避免使用_：上下文文件、附件
 
-**Answer Evaluation**:
-The persisted assessment of one completed Interview Round, including dimension scores, feedback, topic, and whether a follow-up is useful.
-_Avoid_: Score, transient evaluation
+**回答评估（Answer Evaluation）**：
+对一个已完成面试轮次的持久化评估，包括各维度得分、反馈、主题，以及是否值得继续追问。
+_避免使用_：分数、临时评估
 
-**Interview Report**:
-The aggregate assessment produced from every completed Interview Round in one Practice Interview.
-_Avoid_: Final evaluation, summary
+**面试报告（Interview Report）**：
+根据一次模拟面试中所有已完成的面试轮次生成的汇总评估。
+_避免使用_：最终评估、总结
 
-**Progress Trend**:
-A comparison of completed Interview Reports and Answer Evaluations across multiple Practice Interviews for the same tenant.
-_Avoid_: Dashboard statistics, history
+**进步趋势（Progress Trend）**：
+对同一租户多次模拟面试的面试报告和回答评估进行比较后得到的趋势。
+_避免使用_：仪表盘统计、历史记录
 
-## Flagged ambiguities
+## 已标记的歧义
 
-- “Round count” means completed Interview Rounds, not the number of interviewer messages. A closing message is never a round.
-- “History” may refer to message history or completed Practice Interviews; use the specific term in code and documentation.
+- “轮次数”是指已完成的面试轮次数，而不是面试官消息的数量。结束语永远不计为一个轮次。
+- “历史记录”既可能指消息历史，也可能指已完成的模拟面试；在代码和文档中应使用含义明确的具体术语。
 
-## Example dialogue
+## 示例对话
 
-Developer: “When does an Interview Round count toward the target?”
+开发者：“一个面试轮次在什么时候计入目标轮数？”
 
-Domain expert: “After the candidate answer has an Answer Evaluation. The next question and the closing message do not increment it.”
+领域专家：“候选人的回答产生回答评估后。下一道问题和结束语都不会增加轮次数。”
 
-Developer: “What feeds the Interview Report?”
+开发者：“面试报告的数据来自哪里？”
 
-Domain expert: “Every persisted Answer Evaluation and its question and answer from that Practice Interview.”
+领域专家：“来自该次模拟面试中每一份已持久化的回答评估，以及对应的问题和回答。”
