@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     embedding_api_key: str = ""
     embedding_dimension: int = 3072  # vector dimension for Qdrant collections
 
+    # Runtime model health check
+    model_health_check_timeout_seconds: float = 10.0
+
     # CORS
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
 

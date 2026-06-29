@@ -1,5 +1,6 @@
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, status
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1 import api_router
@@ -8,6 +9,7 @@ from app.core.qdrant import init_qdrant
 from app.core.minio import init_minio
 from app.core.logging import get_structured_logger
 from app.middleware.logging import RequestLoggingMiddleware
+from app.services.model_health import check_model_health
 
 logger = get_structured_logger("app")
 
@@ -59,7 +61,17 @@ def create_app() -> FastAPI:
 
     @app.get("/health")
     async def health_check():
-        return {"status": "ok", "service": settings.app_name}
+        models = await check_model_health()
+        is_healthy = all(component["status"] == "ok" for component in models.values())
+        payload = {
+            "status": "ok" if is_healthy else "unhealthy",
+            "service": settings.app_name,
+            "components": models,
+        }
+        return JSONResponse(
+            status_code=status.HTTP_200_OK if is_healthy else status.HTTP_503_SERVICE_UNAVAILABLE,
+            content=payload,
+        )
 
     return app
 
